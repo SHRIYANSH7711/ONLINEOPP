@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <title>CanTech - Vendor Dashboard</title>
+    <style>
+        .vendor-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 2rem 0;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-card h3 {
+            margin: 0;
+            color: #0e6253;
+            font-size: 2rem;
+        }
+
+        .stat-card p {
+            margin: 0.5rem 0 0;
+            color: #666;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 2rem 0 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .section-header h3 {
+            color: #0e6253;
+            font-size: 1.5rem;
+        }
+
+        .btn-primary {
+            background: #0e6253;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 16px;
+            font-weight: 600;
+        }
+
+        .btn-primary:hover {
+            background: #ffc107;
+            color: #000;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+        }
+
+        .btn-edit {
+            background: #007bff;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-right: 0.5rem;
+        }
+
+        .btn-edit:hover {
+            background: #0056b3;
+        }
+
+        .order-card, .menu-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .menu-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .menu-card-info {
+            flex: 1;
+        }
+
+        .menu-card-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .order-token {
+            font-weight: bold;
+            color: #0e6253;
+            font-size: 1.2rem;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+        }
+
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            color: #0e6253;
+        }
+
+        .close-modal {
+            font-size: 2rem;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-modal:hover {
+            color: #000;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: #0e6253;
+            outline: none;
+        }
+
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .switch-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .switch-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .switch-slider {
+            background-color: #00b894;
+        }
+
+        input:checked + .switch-slider:before {
+            transform: translateX(26px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 3rem;
+            color: #666;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background: white;
+            border: 2px solid #0e6253;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .tab-btn:hover {
+            background: #0e6253;
+            color: white;
+        }
+
+        .tab-btn.active {
+            background: #0e6253;
+            color: white;
+        }
+
+        .order-date-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            background: #f0f0f0;
+            border-radius: 5px;
+            font-size: 0.9rem;
+            margin-left: 10px;
+        }
+
+        @media screen and (max-width: 768px) {
+            .menu-card {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .menu-card-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1 class="logo">CanTech Vendor</h1>
+        <div class="sidebar-menus">
+            <a href="#" onclick="showSection('orders')"><ion-icon name="receipt-outline"></ion-icon>Today's Orders</a>
+            <a href="#" onclick="showSection('past-orders')"><ion-icon name="archive-outline"></ion-icon>Past Orders</a>
+            <a href="#" onclick="showSection('menu')"><ion-icon name="restaurant-outline"></ion-icon>Menu Items</a>
+        </div>
+        <div class="sidebar-logout">
+            <a href="#" onclick="auth.logout()"><ion-icon name="log-out-outline"></ion-icon>Logout</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <div class="main-navbar">
+            <h2>Welcome, <span id="vendor-name">Vendor</span>!</h2>
+        </div>
+
+        <!-- Stats Section -->
+        <div class="vendor-stats" id="stats-section">
+            <div class="stat-card">
+                <h3 id="total-orders">0</h3>
+                <p>Total Orders</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="today-orders">0</h3>
+                <p>Today's Orders</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="pending-orders">0</h3>
+                <p>Pending Orders</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="menu-items-count">0</h3>
+                <p>Menu Items</p>
+            </div>
+        </div>
+
+        <!-- Today's Orders Section -->
+        <div id="orders-section">
+            <div class="section-header">
+                <h3>Today's Orders</h3>
+                <button class="btn-primary" onclick="refreshOrders()">
+                    <ion-icon name="refresh-outline"></ion-icon>
+                    Refresh
+                </button>
+            </div>
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="filterTodayOrders('all')">All</button>
+                <button class="tab-btn" onclick="filterTodayOrders('pending')">Pending</button>
+                <button class="tab-btn" onclick="filterTodayOrders('confirmed')">Confirmed</button>
+                <button class="tab-btn" onclick="filterTodayOrders('preparing')">Preparing</button>
+                <button class="tab-btn" onclick="filterTodayOrders('ready')">Ready</button>
+                <button class="tab-btn" onclick="filterTodayOrders('completed')">Completed</button>
+            </div>
+            <div id="orders-list"></div>
+        </div>
+
+        <!-- Past Orders Section -->
+        <div id="past-orders-section" style="display: none;">
+            <div class="section-header">
+                <h3>Past Orders (Previous Days)</h3>
+            </div>
+            <div id="past-orders-list"></div>
+        </div>
+
+        <!-- Menu Management Section -->
+        <div id="menu-section" style="display: none;">
+            <div class="section-header">
+                <h3>Menu Items Management</h3>
+                <button class="btn-primary" onclick="openAddItemModal()">
+                    <ion-icon name="add-circle-outline"></ion-icon>
+                    Add New Item
+                </button>
+            </div>
+            <div id="menu-items"></div>
+        </div>
+    </div>
+
+    <!-- Add/Edit Item Modal -->
+    <div id="item-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="modal-title">Add New Item</h2>
+                <span class="close-modal" onclick="closeItemModal()">&times;</span>
+            </div>
+            <form id="item-form">
+                <div class="form-group">
+                    <label for="item-name">Item Name *</label>
+                    <input type="text" id="item-name" required>
+                </div>
+                <div class="form-group">
+                    <label for="item-price">Price (₹) *</label>
+                    <input type="number" id="item-price" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label for="item-category">Category</label>
+                    <select id="item-category">
+                        <option value="">Select category (optional)</option>
+                        <option value="Breakfast">Breakfast</option>
+                        <option value="Main Course">Main Course</option>
+                        <option value="Snacks">Snacks</option>
+                        <option value="Beverages">Beverages</option>
+                        <option value="Street Food">Street Food</option>
+                        <option value="Chinese">Chinese</option>
+                        <option value="South Indian">South Indian</option>
+                        <option value="North Indian">North Indian</option>
+                        <option value="Rice">Rice</option>
+                        <option value="Bread">Bread</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="item-description">Description</label>
+                    <textarea id="item-description" placeholder="Describe your item..."></textarea>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">
+                    <ion-icon name="checkmark-circle-outline"></ion-icon>
+                    <span id="submit-btn-text">Add Item</span>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/brand.js"></script>
+    <script>
+        let currentOrders = [];
+        let todayOrders = [];
+        let pastOrders = [];
+        let currentMenuItems = [];
+        let currentOrderFilter = 'all';
+        let editingItemId = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const user = auth.getCurrentUser();
+            if (user) {
+                document.getElementById('vendor-name').textContent = user.name;
+            }
+            await loadOrders();
+            updateStats();
+            startAutoRefresh();
+        });
+
+        function startAutoRefresh() {
+            setInterval(() => {
+                loadOrders();
+            }, 30000);
+        }
+
+        function showSection(section) {
+            document.getElementById('orders-section').style.display = 'none';
+            document.getElementById('past-orders-section').style.display = 'none';
+            document.getElementById('menu-section').style.display = 'none';
+            
+            if (section === 'orders') {
+                document.getElementById('orders-section').style.display = 'block';
+                loadOrders();
+            } else if (section === 'past-orders') {
+                document.getElementById('past-orders-section').style.display = 'block';
+                displayPastOrders();
+            } else if (section === 'menu') {
+                document.getElementById('menu-section').style.display = 'block';
+                loadMenuItems();
+            }
+        }
+
+        async function refreshOrders() {
+            await loadOrders();
+            showNotification('Orders refreshed!');
+        }
+
+        async function loadOrders() {
+            try {
+                currentOrders = await api.getVendorOrders();
+                separateOrders();
+                displayTodayOrders();
+                updateStats();
+            } catch (error) {
+                console.error('Error loading orders:', error);
+                document.getElementById('orders-list').innerHTML = `
+                    <div class="empty-state">
+                        <p style="color: red;">Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function separateOrders() {
+            const today = new Date().toISOString().split('T')[0];
+            
+            todayOrders = currentOrders.filter(order => {
+                const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+                return orderDate === today;
+            });
+
+            pastOrders = currentOrders.filter(order => {
+                const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+                return orderDate < today;
+            });
+        }
+
+        function filterTodayOrders(status) {
+            currentOrderFilter = status;
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            displayTodayOrders();
+        }
+
+        function displayTodayOrders() {
+            const container = document.getElementById('orders-list');
+            let ordersToShow = todayOrders;
+            
+            if (currentOrderFilter !== 'all') {
+                ordersToShow = todayOrders.filter(o => o.status === currentOrderFilter);
+            }
+
+            if (ordersToShow.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No orders for today yet.</p></div>';
+                return;
+            }
+
+            container.innerHTML = ordersToShow.map(order => createOrderCard(order, false)).join('');
+        }
+
+        function displayPastOrders() {
+            const container = document.getElementById('past-orders-list');
+            
+            if (pastOrders.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No past orders.</p></div>';
+                return;
+            }
+
+            container.innerHTML = pastOrders.map(order => createOrderCard(order, true)).join('');
+        }
+
+        function createOrderCard(order, isPast) {
+            const orderDate = new Date(order.created_at).toLocaleString('en-IN');
+            const orderDay = new Date(order.created_at).toLocaleDateString('en-IN', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+            
+            const itemsHTML = order.items.map(item => `
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #e0e0e0;">
+                    <span>${item.name} (${item.qty}×)</span>
+                    <span>₹${(parseFloat(item.price) * item.qty).toFixed(2)}</span>
+                </div>
+            `).join('');
+
+            return `
+                <div class="order-card">
+                    <div class="order-header">
+                        <div>
+                            <div class="order-token">
+                                Token: ${order.token}
+                                ${isPast ? `<span class="order-date-badge">${orderDay}</span>` : ''}
+                            </div>
+                            <small style="color: #666;">${orderDate}</small>
+                        </div>
+                        <span style="padding: 5px 10px; background: #e8f5e8; color: #2d5a2d; border-radius: 15px; font-size: 12px; font-weight: bold;">${order.status.toUpperCase()}</span>
+                    </div>
+                    
+                    <div style="margin: 1rem 0; padding: 1rem; background: #f9f9f9; border-radius: 5px;">
+                        <strong>Items:</strong>
+                        ${itemsHTML}
+                        <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 2px solid #0e6253;">
+                            <strong>Total</strong>
+                            <strong>₹${parseFloat(order.total_amount).toFixed(2)}</strong>
+                        </div>
+                    </div>
+
+                    ${!isPast ? `
+                    <label style="display: flex; align-items: center; gap: 10px;">
+                        <strong>Status:</strong>
+                        <select style="padding: 8px 12px; border: 2px solid #0e6253; border-radius: 5px;" onchange="updateOrderStatus(${order.id}, this.value)">
+                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+                            <option value="confirmed" ${order.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                            <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Preparing</option>
+                            <option value="ready" ${order.status === 'ready' ? 'selected' : ''}>Ready</option>
+                            <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
+                        </select>
+                    </label>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        async function loadMenuItems() {
+            try {
+                currentMenuItems = await api.getVendorMenuItems();
+                displayMenuItems(currentMenuItems);
+                updateStats();
+            } catch (error) {
+                console.error('Error loading menu items:', error);
+                document.getElementById('menu-items').innerHTML = `
+                    <div class="empty-state">
+                        <p style="color: red;">Error: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayMenuItems(items) {
+            const container = document.getElementById('menu-items');
+            
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No menu items yet. Click "Add New Item" to get started!</p></div>';
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <div class="menu-card">
+                    <div class="menu-card-info">
+                        <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
+                        <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
+                        ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
+                    </div>
+                    <div class="menu-card-actions">
+                        <label class="switch">
+                            <input type="checkbox" 
+                                   ${item.is_available ? 'checked' : ''} 
+                                   onchange="toggleAvailability(${item.id}, this.checked)">
+                            <span class="switch-slider"></span>
+                        </label>
+                        <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
+                        <button class="btn-edit" onclick="editItem(${item.id})">
+                            <ion-icon name="create-outline"></ion-icon> Edit
+                        </button>
+                        <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name}')">
+                            <ion-icon name="trash-outline"></ion-icon> Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openAddItemModal() {
+            editingItemId = null;
+            document.getElementById('modal-title').textContent = 'Add New Item';
+            document.getElementById('submit-btn-text').textContent = 'Add Item';
+            document.getElementById('item-form').reset();
+            document.getElementById('item-modal').classList.add('active');
+        }
+
+        function editItem(itemId) {
+            const item = currentMenuItems.find(i => i.id === itemId);
+            if (!item) return;
+
+            editingItemId = itemId;
+            document.getElementById('modal-title').textContent = 'Edit Item';
+            document.getElementById('submit-btn-text').textContent = 'Update Item';
+            document.getElementById('item-name').value = item.name;
+            document.getElementById('item-price').value = item.price;
+            document.getElementById('item-category').value = item.category || '';
+            document.getElementById('item-description').value = item.description || '';
+            document.getElementById('item-modal').classList.add('active');
+        }
+
+        function closeItemModal() {
+            document.getElementById('item-modal').classList.remove('active');
+            document.getElementById('item-form').reset();
+            editingItemId = null;
+        }
+
+        document.getElementById('item-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const itemData = {
+                name: document.getElementById('item-name').value,
+                price: parseFloat(document.getElementById('item-price').value),
+                category: document.getElementById('item-category').value || null,
+                description: document.getElementById('item-description').value || null
+            };
+
+            try {
+                if (editingItemId) {
+                    await api.updateMenuItem(editingItemId, itemData);
+                    showNotification('Item updated successfully!');
+                } else {
+                    await api.addMenuItem(itemData);
+                    showNotification('Item added successfully!');
+                }
+                
+                closeItemModal();
+                await loadMenuItems();
+            } catch (error) {
+                console.error('Error saving item:', error);
+                showNotification(error.message, 'error');
+            }
+        });
+
+        async function deleteItem(itemId, itemName) {
+            if (!confirm(`Are you sure you want to delete "${itemName}"?`)) {
+                return;
+            }
+
+            try {
+                const result = await api.deleteMenuItem(itemId);
+                
+                if (result.soft_delete) {
+                    showNotification(result.message);
+                } else {
+                    showNotification('Item deleted successfully!');
+                }
+                
+                await loadMenuItems();
+            } catch (error) {
+                console.error('Error deleting item:', error);
+                showNotification(error.message, 'error');
+            }
+        }
+
+        async function toggleAvailability(itemId, isAvailable) {
+            try {
+                await api.toggleMenuItemAvailability(itemId, isAvailable);
+                showNotification('Availability updated successfully!');
+                await loadMenuItems();
+            } catch (error) {
+                console.error('Error updating availability:', error);
+                showNotification('Failed to update item availability', 'error');
+                await loadMenuItems();
+            }
+        }
+
+        async function updateOrderStatus(orderId, status) {
+            try {
+                await api.updateOrderStatus(orderId, status);
+                showNotification('Order status updated successfully!');
+                await loadOrders();
+            } catch (error) {
+                console.error('Error updating order status:', error);
+                showNotification('Failed to update order status', 'error');
+                await loadOrders();
+            }
+        }
+
+        function updateStats() {
+            document.getElementById('total-orders').textContent = currentOrders.length;
+            document.getElementById('today-orders').textContent = todayOrders.length;
+            document.getElementById('pending-orders').textContent = 
+                todayOrders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
+            document.getElementById('menu-items-count').textContent = currentMenuItems.length;
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'success' ? '#00b894' : '#d63031'};
+                color: white;
+                padding: 15px 20px;
+                border-radius: 8px;
+                z-index: 1000;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+            `;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => notification.remove(), 3000);
+        }
+
+        // Close modal when clicking outside
+        window.onclick = function(event) {
+            const modal = document.getElementById('item-modal');
+            if (event.target === modal) {
+                closeItemModal();
+            }
+        }
+    </script>
+</body>
+</html>

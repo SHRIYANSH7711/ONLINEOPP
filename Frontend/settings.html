@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <title>CanTech - Settings</title>
+    <style>
+        .settings-container {
+            margin-left: 300px;
+            padding: 2rem;
+            background: var(--softGreenColor);
+            min-height: 100vh;
+        }
+
+        .settings-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            margin-bottom: 2rem;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .settings-card h3 {
+            color: var(--primaryColor);
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+
+        .setting-label {
+            font-weight: 600;
+        }
+
+        .setting-description {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 60px;
+            height: 34px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 26px;
+            width: 26px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .slider {
+            background-color: var(--primaryColor);
+        }
+
+        input:checked + .slider:before {
+            transform: translateX(26px);
+        }
+
+        .profile-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primaryColor);
+            outline: none;
+        }
+
+        .btn-primary {
+            background: var(--primaryColor);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondaryColor);
+            color: var(--blackColor);
+        }
+
+        @media screen and (max-width: 768px) {
+            .settings-container {
+                margin-left: 0;
+                padding: 1rem;
+            }
+            
+            .profile-section {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1 class="logo">CanTech</h1>
+        <div class="sidebar-menus">
+            <a href="dashboard.html"><ion-icon name="storefront-outline"></ion-icon>Home</a>
+            <a href="orders-placed.html"><ion-icon name="cube-outline"></ion-icon>My Orders</a>
+            <a href="bills.html"><ion-icon name="receipt-outline"></ion-icon>Bills</a>
+            <a href="wallet.html"><ion-icon name="wallet-outline"></ion-icon>Wallet</a>
+            <a href="notifications.html"><ion-icon name="notifications-outline"></ion-icon>Notifications</a>
+            <a href="contact.html"><ion-icon name="chatbubbles-outline"></ion-icon>Contact Us</a>
+            <a href="settings.html"><ion-icon name="settings-outline"></ion-icon>Settings</a>
+        </div>
+        <div class="sidebar-logout">
+            <a href="#" onclick="auth.logout()"><ion-icon name="log-out-outline"></ion-icon>Logout</a>
+        </div>
+    </div>
+
+    <div class="settings-container">
+        <div class="settings-card">
+            <h3>Profile Settings</h3>
+            <div class="profile-section">
+                <div class="form-group">
+                    <label for="user-name">Full Name</label>
+                    <input type="text" id="user-name" placeholder="Enter your name">
+                </div>
+                <div class="form-group">
+                    <label for="user-email">Email</label>
+                    <input type="email" id="user-email" placeholder="Enter your email" readonly>
+                </div>
+            </div>
+            <button class="btn-primary" onclick="updateProfile()">Update Profile</button>
+        </div>
+
+        <div class="settings-card">
+            <h3>App Preferences</h3>
+            
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">Dark Mode</div>
+                    <div class="setting-description">Switch to dark theme</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="dark-mode" onchange="toggleDarkMode()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">Push Notifications</div>
+                    <div class="setting-description">Get notified when your order is ready</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="notifications" onchange="toggleNotifications()">
+                    <span class="slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">Auto-refresh Orders</div>
+                    <div class="setting-description">Automatically check for order status updates</div>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()" checked>
+                    <span class="slider"></span>
+                </label>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3>Account Actions</h3>
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">Change Password</div>
+                    <div class="setting-description">Update your account password</div>
+                </div>
+                <button class="btn-primary" onclick="changePassword()">Change</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/brand.js"></script>
+    <script>
+        // Load user data
+        document.addEventListener('DOMContentLoaded', () => {
+            const user = auth.getCurrentUser();
+            if (user) {
+                document.getElementById('user-name').value = user.name;
+                document.getElementById('user-email').value = user.email;
+            }
+
+            // Load saved preferences
+            loadPreferences();
+        });
+
+        function loadPreferences() {
+            const darkMode = localStorage.getItem('darkMode') === 'true';
+            const notifications = localStorage.getItem('notifications') !== 'false'; // default true
+            const autoRefresh = localStorage.getItem('autoRefresh') !== 'false'; // default true
+
+            document.getElementById('dark-mode').checked = darkMode;
+            document.getElementById('notifications').checked = notifications;
+            document.getElementById('auto-refresh').checked = autoRefresh;
+
+            if (darkMode) {
+                document.body.classList.add('dark-mode');
+            }
+        }
+
+        function updateProfile() {
+            const name = document.getElementById('user-name').value;
+            if (!name.trim()) {
+                alert('Please enter a valid name');
+                return;
+            }
+
+            // Here you would call an API to update the profile
+            // For now, just update localStorage
+            const user = auth.getCurrentUser();
+            user.name = name;
+            localStorage.setItem('user', JSON.stringify(user));
+
+            alert('Profile updated successfully!');
+        }
+
+        function toggleDarkMode() {
+            const isDark = document.getElementById('dark-mode').checked;
+            localStorage.setItem('darkMode', isDark);
+            
+            if (isDark) {
+                document.body.classList.add('dark-mode');
+            } else {
+                document.body.classList.remove('dark-mode');
+            }
+        }
+
+        function toggleNotifications() {
+            const enabled = document.getElementById('notifications').checked;
+            localStorage.setItem('notifications', enabled);
+            
+            if (enabled) {
+                // Request notification permission
+                if ('Notification' in window) {
+                    Notification.requestPermission();
+                }
+            }
+        }
+
+        function toggleAutoRefresh() {
+            const enabled = document.getElementById('auto-refresh').checked;
+            localStorage.setItem('autoRefresh', enabled);
+        }
+
+        function changePassword() {
+            const newPassword = prompt('Enter new password (minimum 6 characters):');
+            if (!newPassword || newPassword.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            // Here you would call an API to change the password
+            alert('Password change functionality will be implemented with backend API');
+        }
+    </script>
+</body>
+</html>

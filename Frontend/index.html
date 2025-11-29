@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>CanTech</title>
+    <script>
+        // Redirect to login or dashboard based on auth status
+        const token = localStorage.getItem('authToken');
+        if (token) {
+            window.location.href = '/dashboard.html';
+        } else {
+            window.location.href = '/login.html';
+        }
+    </script>
+</head>
+<body>
+    <div style="text-align: center; padding: 2rem;">
+        <h1>CanTech</h1>
+        <p>Redirecting...</p>
+    </div>
+</body>
+</html>

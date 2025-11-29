@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <title>CanTech - Dashboard</title>
+</head>
+<body>
+    <div class="sidebar">
+        <h1 class="logo">CanTech</h1>
+        <div class="sidebar-menus">
+            <a href="dashboard.html"><ion-icon name="storefront-outline"></ion-icon>Home</a>
+            <a href="orders-placed.html"><ion-icon name="cube-outline"></ion-icon>My Orders</a>
+            <a href="bills.html"><ion-icon name="receipt-outline"></ion-icon>Bills</a>
+            <a href="wallet.html"><ion-icon name="wallet-outline"></ion-icon>Wallet</a>
+            <a href="notifications.html"><ion-icon name="notifications-outline"></ion-icon>Notifications</a>
+            <a href="contact.html"><ion-icon name="chatbubbles-outline"></ion-icon>Contact Us</a>
+            <a href="settings.html"><ion-icon name="settings-outline"></ion-icon>Settings</a>
+        </div>
+        <div class="sidebar-logout">
+            <a href="#" onclick="auth.logout()"><ion-icon name="log-out-outline"></ion-icon>Logout</a>
+        </div>
+    </div>
+
+    <div class="main">
+        <!-- NAVBAR -->
+        <div class="main-navbar">
+            <ion-icon class="menu-toggle" name="menu-outline"></ion-icon>
+            <div class="search">
+                <input type="text" id="search-bar" placeholder="What you crave for today?">
+                <button class="search-btn">Search</button>
+            </div>
+            <div class="profile">
+                <div class="wallet-display">
+                    <span>Balance: ₹<span id="wallet-balance">0</span></span>
+                </div>
+                <a class="cart" href="#" onclick="toggleCartPopup()">
+                    <ion-icon name="cart-outline"></ion-icon>
+                    <span class="cart-count" id="cart-count">0</span>
+                </a>
+                <a class="user" href="#"><ion-icon name="person-outline"></ion-icon></a>
+            </div>
+        </div>
+
+        <!-- CART POPUP -->
+        <div id="cart-popup" class="cart-popup">
+            <h4>Shopping Cart</h4>
+            <div class="cart-table-wrapper">
+                <table id="cart-items">
+                    <thead>
+                        <tr>
+                            <th>Item</th>
+                            <th>Outlet</th>
+                            <th>#</th>
+                            <th>Price(₹)</th>
+                            <th>Total(₹)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+            <div class="cart-footer">
+                <p>Total(₹) <span id="cart-total">0.00</span></p>
+                <button id="checkout-btn">Checkout</button>
+            </div>
+            <a class="cart-close" onclick="closeCart()">
+                <ion-icon name="close-circle-outline"></ion-icon>
+            </a>
+        </div>
+
+        <!-- USER WELCOME -->
+        <div class="user-welcome">
+            <h2>Welcome back, <span id="user-name">User</span>!</h2>
+        </div>
+
+        <!-- RECOMMENDATIONS -->
+        <div class="main-highlight">
+            <div class="main-header">
+                <h2 class="main-title">Popular Items</h2>
+                <div class="main-arrow">
+                    <ion-icon class="back" name="chevron-back-circle-outline"></ion-icon>
+                    <ion-icon class="next" name="chevron-forward-circle-outline"></ion-icon>
+                </div>
+            </div>
+            <div class="highlight-wrapper" id="popular-items">
+                <!-- Popular items will be loaded here -->
+            </div>
+        </div>
+
+        <!-- OUTLETS -->
+        <div class="main-menus">
+            <div class="main-filter" id="outlet-cards">
+                <h2 class="main-title">Choose Outlet</h2>
+                <div class="main-arrow">
+                    <ion-icon class="back-menus" name="chevron-back-circle-outline"></ion-icon>
+                    <ion-icon class="next-menus" name="chevron-forward-circle-outline"></ion-icon>
+                </div>
+                <div class="filter-wrapper" id="outlets-container">
+                    <!-- Outlets will be loaded here -->
+                </div>
+            </div>
+
+            <hr class="divider">
+
+            <div class="main-detail">
+                <h2 class="main-title">All Items</h2>
+                <div id="menu" class="detail-wrapper">
+                    <!-- Menu items will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading overlay -->
+    <div id="loading-overlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/app.js"></script>
+    <script src="js/brand.js"></script>
+</body>
+</html>
