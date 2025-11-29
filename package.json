@@ -2,11 +2,11 @@
   "name": "cantech-ordering-system",
   "version": "1.0.0",
   "description": "College canteen ordering system",
-  "main": "backend/server.js",
+  "main": "Backend/server.js",
   "scripts": {
-    "start": "node ./backend/server.js",
-    "dev": "nodemon ./backend/server.js",
-    "setup": "node ./backend/setup.js"
+    "start": "node Backend/server.js",
+    "dev": "nodemon Backend/server.js",
+    "setup": "node Backend/setup.js"
   },
   "dependencies": {
     "express": "^4.18.2",
@@ -18,8 +18,5 @@
   },
   "devDependencies": {
     "nodemon": "^3.0.1"
-  },
-  "keywords": ["canteen", "ordering", "college", "food"],
-  "author": "Your Name",
-  "license": "MIT"
+  }
 }
