@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <title>CanTech - Order History</title>
+    <style>
+        .bills-container {
+            margin-left: 300px;
+            padding: 2rem;
+            background: var(--softGreenColor);
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, var(--primaryColor), var(--secondaryColor));
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .orders-grid {
+            display: grid;
+            gap: 2rem;
+        }
+
+        .order-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--primaryColor);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .order-token {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--primaryColor);
+        }
+
+        .order-status {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .status-pending {
+            background: #ffe4b5;
+            color: #e67e22;
+        }
+
+        .status-confirmed {
+            background: #e8f4f8;
+            color: #3498db;
+        }
+
+        .status-preparing {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-ready {
+            background: #d1edcc;
+            color: #28a745;
+        }
+
+        .status-completed {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .order-meta {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .order-items {
+            margin: 1rem 0;
+        }
+
+        .item-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .item-row:last-child {
+            border-bottom: none;
+            font-weight: bold;
+            margin-top: 0.5rem;
+            padding-top: 1rem;
+            border-top: 2px solid var(--primaryColor);
+        }
+
+        .item-details {
+            flex: 1;
+        }
+
+        .item-vendor {
+            font-size: 0.8rem;
+            color: var(--darkGreyColor);
+        }
+
+        .order-total {
+            text-align: right;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: var(--primaryColor);
+            margin-top: 1rem;
+        }
+
+        .no-orders {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 15px;
+            color: #666;
+        }
+
+        .no-orders img {
+            max-width: 300px;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        @media screen and (max-width: 768px) {
+            .bills-container {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .order-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .order-meta {
+                flex-direction: column;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1 class="logo">CanTech</h1>
+        <div class="sidebar-menus">
+            <a href="dashboard.html"><ion-icon name="storefront-outline"></ion-icon>Home</a>
+            <a href="orders-placed.html"><ion-icon name="cube-outline"></ion-icon>My Orders</a>
+            <a href="bills.html"><ion-icon name="receipt-outline"></ion-icon>Bills</a>
+            <a href="wallet.html"><ion-icon name="wallet-outline"></ion-icon>Wallet</a>
+            <a href="notifications.html"><ion-icon name="notifications-outline"></ion-icon>Notifications</a>
+            <a href="contact.html"><ion-icon name="chatbubbles-outline"></ion-icon>Contact Us</a>
+            <a href="settings.html"><ion-icon name="settings-outline"></ion-icon>Settings</a>
+        </div>
+        <div class="sidebar-logout">
+            <a href="#" onclick="auth.logout()"><ion-icon name="log-out-outline"></ion-icon>Logout</a>
+        </div>
+    </div>
+
+    <div class="bills-container">
+        <div class="page-header">
+            <h1>Order History</h1>
+            <p>Track all your orders and download receipts</p>
+        </div>
+
+        <div class="orders-grid" id="orders-container">
+            <!-- Orders will be loaded here -->
+        </div>
+
+        <div class="no-orders" id="no-orders" style="display: none;">
+            <img src="images/no_orders.jpg" alt="No Orders" onerror="this.style.display='none'">
+            <h3>No Orders Yet</h3>
+            <p>Start ordering delicious food from your favorite outlets!</p>
+            <a href="dashboard.html" style="display: inline-block; margin-top: 1rem; padding: 12px 24px; background: var(--primaryColor); color: white; text-decoration: none; border-radius: 8px;">Browse Menu</a>
+        </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/brand.js"></script>
+    <script>
+        class BillsPage {
+            constructor() {
+                this.init();
+            }
+
+            async init() {
+                await this.loadOrders();
+            }
+
+            async loadOrders() {
+                try {
+                    const orders = await api.getOrders();
+                    this.displayOrders(orders);
+                } catch (error) {
+                    console.error('Error loading orders:', error);
+                    document.getElementById('no-orders').style.display = 'block';
+                }
+            }
+
+            displayOrders(orders) {
+                const container = document.getElementById('orders-container');
+                const noOrdersDiv = document.getElementById('no-orders');
+
+                if (orders.length === 0) {
+                    container.style.display = 'none';
+                    noOrdersDiv.style.display = 'block';
+                    return;
+                }
+
+                container.innerHTML = orders.map(order => this.createOrderCard(order)).join('');
+            }
+
+            createOrderCard(order) {
+                const orderDate = new Date(order.created_at).toLocaleDateString('en-IN', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+
+                const itemsHTML = order.items.map(item => `
+                    <div class="item-row">
+                        <div class="item-details">
+                            <div>${item.name}</div>
+                            <div class="item-vendor">${item.vendor}</div>
+                        </div>
+                        <div>${item.qty} × ₹${parseFloat(item.price).toFixed(2)}</div>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <div class="order-token">Token: ${order.token}</div>
+                            <div class="order-status status-${order.status}">${order.status}</div>
+                        </div>
+                        
+                        <div class="order-meta">
+                            <div>Order Date: ${orderDate}</div>
+                            <div>Order ID: #${order.id}</div>
+                        </div>
+                        
+                        <div class="order-items">
+                            ${itemsHTML}
+                            <div class="item-row">
+                                <div class="item-details"><strong>Total Amount</strong></div>
+                                <div><strong>₹${parseFloat(order.total_amount).toFixed(2)}</strong></div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Initialize bills page
+        document.addEventListener('DOMContentLoaded', () => {
+            new BillsPage();
+        });
+    </script>
+</body>
+</html>

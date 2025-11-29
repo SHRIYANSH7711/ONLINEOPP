@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <title>Onlineपेटपूजा - Notifications</title>
+    <style>
+        .notifications-container {
+            margin-left: 300px;
+            padding: 2rem;
+            background: var(--softGreenColor);
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, var(--primaryColor), var(--secondaryColor));
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .notification-item {
+            background: white;
+            margin-bottom: 1rem;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-left: 4px solid var(--primaryColor);
+            transition: all 0.3s ease;
+        }
+
+        .notification-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .notification-item.unread {
+            border-left-color: var(--secondaryColor);
+            background: #fefbf3;
+        }
+
+        .notification-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .notification-title {
+            font-weight: 600;
+            color: var(--primaryColor);
+            font-size: 1.1rem;
+        }
+
+        .notification-time {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .notification-message {
+            color: #333;
+            line-height: 1.5;
+        }
+
+        .notification-type {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-top: 0.5rem;
+        }
+
+        .type-order {
+            background: #e8f5e8;
+            color: #2d5a2d;
+        }
+
+        .type-payment {
+            background: #e8f4f8;
+            color: #2d4a5a;
+        }
+
+        .type-promotion {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .type-general {
+            background: #e0e0e0;
+            color: #555;
+        }
+
+        .no-notifications {
+            text-align: center;
+            padding: 3rem;
+            background: white;
+            border-radius: 15px;
+            color: #666;
+        }
+
+        .no-notifications img {
+            max-width: 300px;
+            width: 100%;
+            margin-bottom: 1rem;
+        }
+
+        .mark-all-read {
+            background: var(--primaryColor);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .mark-all-read:hover {
+            background: var(--secondaryColor);
+            color: var(--blackColor);
+        }
+
+        .loading-spinner {
+            text-align: center;
+            padding: 3rem;
+        }
+
+        @media screen and (max-width: 768px) {
+            .notifications-container {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .notification-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1 class="logo">Onlineपेटपूजा</h1>
+        <div class="sidebar-menus">
+            <a href="dashboard.html"><ion-icon name="storefront-outline"></ion-icon>Home</a>
+            <a href="orders-placed.html"><ion-icon name="cube-outline"></ion-icon>My Orders</a>
+            <a href="bills.html"><ion-icon name="receipt-outline"></ion-icon>Bills</a>
+            <a href="wallet.html"><ion-icon name="wallet-outline"></ion-icon>Wallet</a>
+            <a href="notifications.html"><ion-icon name="notifications-outline"></ion-icon>Notifications</a>
+            <a href="contact.html"><ion-icon name="chatbubbles-outline"></ion-icon>Contact Us</a>
+            <a href="settings.html"><ion-icon name="settings-outline"></ion-icon>Settings</a>
+        </div>
+        <div class="sidebar-logout">
+            <a href="#" onclick="auth.logout()"><ion-icon name="log-out-outline"></ion-icon>Logout</a>
+        </div>
+    </div>
+
+    <div class="notifications-container">
+        <div class="page-header">
+            <h1>Notifications</h1>
+            <p>Stay updated with your orders and account activities</p>
+        </div>
+
+        <button class="mark-all-read" onclick="markAllAsRead()" id="mark-all-btn" style="display: none;">
+            Mark All as Read
+        </button>
+
+        <div class="loading-spinner" id="loading-spinner">
+            <p>Loading notifications...</p>
+        </div>
+
+        <div id="notifications-list" style="display: none;">
+            <!-- Notifications will be loaded here -->
+        </div>
+
+        <div class="no-notifications" id="no-notifications" style="display: none;">
+            <ion-icon name="notifications-off-outline" style="font-size: 4rem; color: #ccc;"></ion-icon>
+            <h3>No Notifications Yet</h3>
+            <p>You'll see updates about your orders and account here!</p>
+        </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/brand.js"></script>
+    <script>
+        class NotificationsPage {
+            constructor() {
+                this.notifications = [];
+                this.init();
+            }
+
+            async init() {
+                await this.loadNotifications();
+                this.startAutoRefresh();
+            }
+
+            startAutoRefresh() {
+                // Auto-refresh every 30 seconds
+                setInterval(() => {
+                    this.loadNotifications();
+                }, 30000);
+            }
+
+            async loadNotifications() {
+                const loadingSpinner = document.getElementById('loading-spinner');
+                const notificationsList = document.getElementById('notifications-list');
+                const noNotificationsDiv = document.getElementById('no-notifications');
+                const markAllBtn = document.getElementById('mark-all-btn');
+
+                try {
+                    // Show loading initially
+                    if (this.notifications.length === 0) {
+                        loadingSpinner.style.display = 'block';
+                        notificationsList.style.display = 'none';
+                        noNotificationsDiv.style.display = 'none';
+                    }
+
+                    // Fetch real notifications from API
+                    this.notifications = await api.getNotifications();
+                    
+                    // Hide loading
+                    loadingSpinner.style.display = 'none';
+                    
+                    this.displayNotifications();
+                } catch (error) {
+                    console.error('Error loading notifications:', error);
+                    loadingSpinner.style.display = 'none';
+                    notificationsList.style.display = 'none';
+                    noNotificationsDiv.style.display = 'block';
+                }
+            }
+
+            displayNotifications() {
+                const container = document.getElementById('notifications-list');
+                const noNotificationsDiv = document.getElementById('no-notifications');
+                const markAllBtn = document.getElementById('mark-all-btn');
+
+                if (this.notifications.length === 0) {
+                    container.style.display = 'none';
+                    noNotificationsDiv.style.display = 'block';
+                    markAllBtn.style.display = 'none';
+                    return;
+                }
+
+                // Show notifications list
+                container.style.display = 'block';
+                noNotificationsDiv.style.display = 'none';
+
+                // Check if there are unread notifications
+                const hasUnread = this.notifications.some(n => !n.is_read);
+                markAllBtn.style.display = hasUnread ? 'block' : 'none';
+
+                container.innerHTML = this.notifications.map(notification => 
+                    this.createNotificationItem(notification)
+                ).join('');
+            }
+
+            createNotificationItem(notification) {
+                const timeAgo = this.getTimeAgo(new Date(notification.created_at));
+                const readClass = notification.is_read ? '' : 'unread';
+
+                return `
+                    <div class="notification-item ${readClass}" onclick="markAsRead(${notification.id})">
+                        <div class="notification-header">
+                            <div class="notification-title">${notification.title}</div>
+                            <div class="notification-time">${timeAgo}</div>
+                        </div>
+                        <div class="notification-message">${notification.message}</div>
+                        <span class="notification-type type-${notification.type}">${notification.type}</span>
+                    </div>
+                `;
+            }
+
+            getTimeAgo(date) {
+                const now = new Date();
+                const diffMs = now - date;
+                const diffMins = Math.floor(diffMs / (1000 * 60));
+                const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+                const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+                if (diffMins < 1) return 'Just now';
+                if (diffMins < 60) return `${diffMins}m ago`;
+                if (diffHours < 24) return `${diffHours}h ago`;
+                return `${diffDays}d ago`;
+            }
+
+            async markAsRead(notificationId) {
+                try {
+                    await api.markNotificationAsRead(notificationId);
+                    await this.loadNotifications();
+                } catch (error) {
+                    console.error('Error marking notification as read:', error);
+                }
+            }
+
+            async markAllAsRead() {
+                try {
+                    await api.markAllNotificationsAsRead();
+                    await this.loadNotifications();
+                } catch (error) {
+                    console.error('Error marking all as read:', error);
+                }
+            }
+        }
+
+        // Global functions for onclick handlers
+        function markAsRead(id) {
+            window.notificationsPage.markAsRead(id);
+        }
+
+        function markAllAsRead() {
+            window.notificationsPage.markAllAsRead();
+        }
+
+        // Initialize notifications page
+        document.addEventListener('DOMContentLoaded', () => {
+            window.notificationsPage = new NotificationsPage();
+        });
+    </script>
+</body>
+</html>

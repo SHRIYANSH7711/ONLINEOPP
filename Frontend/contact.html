@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
+    <title>CanTech - Contact Us</title>
+    <style>
+        .contact-container {
+            margin-left: 300px;
+            padding: 2rem;
+            background: var(--softGreenColor);
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, var(--primaryColor), var(--secondaryColor));
+            color: white;
+            padding: 2rem;
+            border-radius: 15px;
+            text-align: center;
+            margin-bottom: 2rem;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .contact-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .contact-card {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .contact-card h3 {
+            color: var(--primaryColor);
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .contact-info {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            background: var(--greyColor);
+            border-radius: 8px;
+        }
+
+        .info-icon {
+            font-size: 1.5rem;
+            color: var(--primaryColor);
+        }
+
+        .contact-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .form-group label {
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: var(--blackColor);
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            border-color: var(--primaryColor);
+            outline: none;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 120px;
+        }
+
+        .submit-btn {
+            background: var(--primaryColor);
+            color: white;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .submit-btn:hover {
+            background: var(--secondaryColor);
+            color: var(--blackColor);
+        }
+
+        .team-section {
+            grid-column: 1 / -1;
+            text-align: center;
+        }
+
+        .team-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin-top: 2rem;
+        }
+
+        .team-member {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 3px 15px rgba(0,0,0,0.1);
+        }
+
+        .member-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: var(--primaryColor);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .member-name {
+            font-weight: 600;
+            color: var(--primaryColor);
+            margin-bottom: 0.5rem;
+        }
+
+        .member-role {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        @media screen and (max-width: 768px) {
+            .contact-container {
+                margin-left: 0;
+                padding: 1rem;
+            }
+
+            .contact-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .team-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h1 class="logo">CanTech</h1>
+        <div class="sidebar-menus">
+            <a href="dashboard.html"><ion-icon name="storefront-outline"></ion-icon>Home</a>
+            <a href="orders-placed.html"><ion-icon name="cube-outline"></ion-icon>My Orders</a>
+            <a href="bills.html"><ion-icon name="receipt-outline"></ion-icon>Bills</a>
+            <a href="wallet.html"><ion-icon name="wallet-outline"></ion-icon>Wallet</a>
+            <a href="notifications.html"><ion-icon name="notifications-outline"></ion-icon>Notifications</a>
+            <a href="contact.html"><ion-icon name="chatbubbles-outline"></ion-icon>Contact Us</a>
+            <a href="settings.html"><ion-icon name="settings-outline"></ion-icon>Settings</a>
+        </div>
+        <div class="sidebar-logout">
+            <a href="#" onclick="auth.logout()"><ion-icon name="log-out-outline"></ion-icon>Logout</a>
+        </div>
+    </div>
+
+    <div class="contact-container">
+        <div class="page-header">
+            <h1>Contact Us</h1>
+            <p>We're here to help! Reach out to us for any questions or concerns.</p>
+        </div>
+
+        <div class="contact-grid">
+            <div class="contact-card">
+                <h3><ion-icon name="information-circle-outline"></ion-icon>Get in Touch</h3>
+                <div class="contact-info">
+                    <div class="info-item">
+                        <ion-icon name="mail-outline" class="info-icon"></ion-icon>
+                        <div>
+                            <strong>Email</strong><br>
+                            support@cantech.com
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <ion-icon name="call-outline" class="info-icon"></ion-icon>
+                        <div>
+                            <strong>Phone</strong><br>
+                            +91 98765 43210
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <ion-icon name="time-outline" class="info-icon"></ion-icon>
+                        <div>
+                            <strong>Support Hours</strong><br>
+                            Mon-Fri: 9:00 AM - 5:00 PM
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <ion-icon name="location-outline" class="info-icon"></ion-icon>
+                        <div>
+                            <strong>Location</strong><br>
+                            PSIT Kanpur Campus
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="contact-card">
+                <h3><ion-icon name="chatbubbles-outline"></ion-icon>Send us a Message</h3>
+                <form class="contact-form" id="contact-form">
+                    <div class="form-group">
+                        <label for="subject">Subject</label>
+                        <select id="subject" required>
+                            <option value="">Select a topic</option>
+                            <option value="order">Order Issue</option>
+                            <option value="payment">Payment Problem</option>
+                            <option value="account">Account Support</option>
+                            <option value="feedback">Feedback</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="message">Message</label>
+                        <textarea id="message" placeholder="Describe your issue or feedback..." required></textarea>
+                    </div>
+                    <button type="submit" class="submit-btn">Send Message</button>
+                </form>
+            </div>
+
+            <div class="contact-card team-section">
+                <h3><ion-icon name="people-outline"></ion-icon>Meet Our Team</h3>
+                <div class="team-grid">
+                    <div class="team-member">
+                        <div class="member-avatar">S</div>
+                        <div class="member-name">Shriyansh Nishad</div>
+                        <div class="member-role">Lead Developer</div>
+                    </div>
+                    <div class="team-member">
+                        <div class="member-avatar">TP</div>
+                        <div class="member-name">Tanvi Pandey</div>
+                        <div class="member-role">UI/UX Designer</div>
+                    </div>
+                    <div class="team-member">
+                        <div class="member-avatar">Y</div>
+                        <div class="member-name">Yashasvi Chaurasiya</div>
+                        <div class="member-role">Backend Developer</div>
+                    </div>
+                    <div class="team-member">
+                        <div class="member-avatar">V</div>
+                        <div class="member-name">Vartika Gupta</div>
+                        <div class="member-role">Backend Developer</div>
+                    </div>
+                    <div class="team-member">
+                        <div class="member-avatar">T</div>
+                        <div class="member-name">Tanya Prajapati</div>
+                        <div class="member-role">Database Developer</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+    <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/brand.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const contactForm = document.getElementById('contact-form');
+            
+            contactForm.addEventListener('submit', (e) => {
+                e.preventDefault();
+                
+                const subject = document.getElementById('subject').value;
+                const message = document.getElementById('message').value;
+                
+                if (!subject || !message.trim()) {
+                    alert('Please fill in all fields');
+                    return;
+                }
+                
+                // Here you would typically send the message to your backend
+                // For now, we'll just show a success message
+                alert('Thank you for your message! We\'ll get back to you within 24 hours.');
+                
+                // Reset form
+                contactForm.reset();
+            });
+        });
+    </script>
+</body>
+</html>
