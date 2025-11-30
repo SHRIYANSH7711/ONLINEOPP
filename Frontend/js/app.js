@@ -16,30 +16,55 @@ class CanTechApp {
     }
 
     setupEventListeners() {
-        // Mobile menu toggle
-        const menuToggle = document.querySelector('.menu-toggle');
-        const sidebar = document.querySelector('.sidebar');
+    // Mobile menu toggle with overlay
+    const menuToggle = document.querySelector('.menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    // Create overlay if it doesn't exist
+    let overlay = document.querySelector('.sidebar-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.className = 'sidebar-overlay';
+        document.body.appendChild(overlay);
+    }
 
-        if (menuToggle && sidebar) {
-            menuToggle.addEventListener('click', () => {
-                menuToggle.classList.toggle('is-active');
-                sidebar.classList.toggle('active');
-            });
+    if (menuToggle && sidebar) {
+        // Toggle sidebar
+        menuToggle.addEventListener('click', () => {
+            menuToggle.classList.toggle('is-active');
+            sidebar.classList.toggle('active');
+            overlay.classList.toggle('active');
+            document.body.classList.toggle('menu-open'); // Prevent body scroll
+        });
 
-            sidebar.addEventListener('click', () => {
-                if (window.innerWidth <= 768 && menuToggle.classList.contains('is-active')) {
+        // Close sidebar when clicking overlay
+        overlay.addEventListener('click', () => {
+            menuToggle.classList.remove('is-active');
+            sidebar.classList.remove('active');
+            overlay.classList.remove('active');
+            document.body.classList.remove('menu-open');
+        });
+
+        // Close sidebar when clicking a link on mobile
+        const sidebarLinks = sidebar.querySelectorAll('a');
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
                     menuToggle.classList.remove('is-active');
                     sidebar.classList.remove('active');
+                    overlay.classList.remove('active');
+                    document.body.classList.remove('menu-open');
                 }
             });
-        }
-
-        // Checkout button
-        const checkoutBtn = document.getElementById('checkout-btn');
-        if (checkoutBtn) {
-            checkoutBtn.addEventListener('click', () => this.checkout());
-        }
+        });
     }
+
+    // Checkout button
+    const checkoutBtn = document.getElementById('checkout-btn');
+    if (checkoutBtn) {
+        checkoutBtn.addEventListener('click', () => this.checkout());
+    }
+}
 
     async loadUserData() {
         try {
