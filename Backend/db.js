@@ -1,4 +1,4 @@
-// backend/db.js
+// Backend/db.js
 const { Pool } = require('pg');
 
 const pool = new Pool({
@@ -6,11 +6,19 @@ const pool = new Pool({
   ssl: {
     rejectUnauthorized: false
   },
+  // Force IPv4 connection
+  host: 'db.kxwfrllipcoglvxulctj.supabase.co',
+  port: 5432,
+  database: 'postgres',
+  user: 'postgres',
+  password: '0123456789Shriyansh',
   // Connection pool settings
-  max: 20, // Maximum number of clients in the pool
-  connectionTimeoutMillis: 10000, // 10 seconds
-  idleTimeoutMillis: 30000, // 30 seconds
-  statement_timeout: 30000, // 30 seconds for queries
+  max: 20,
+  connectionTimeoutMillis: 10000,
+  idleTimeoutMillis: 30000,
+  statement_timeout: 30000,
+  // Disable IPv6
+  family: 4  // Force IPv4
 });
 
 // Connection event handlers
