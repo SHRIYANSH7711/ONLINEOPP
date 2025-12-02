@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-    <title>CanTech - Contact Us</title>
+    <title>Onlineपेटपूजा - Contact Us</title>
     <style>
         .contact-container {
             margin-left: 300px;
@@ -180,6 +180,31 @@
                 grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             }
         }
+
+        .page-mobile-nav {
+        display: none;
+        padding: 1rem;
+        background: white;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin: -2rem -2rem 2rem -2rem; 
+        }
+        @media screen and (max-width: 768px) {
+        .page-mobile-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: -1rem -1rem 1rem -1rem; 
+    }
+    
+    .page-mobile-nav h2 {  
+        margin: 0;
+        flex: 1;
+        font-size: 1.2rem;
+    }
+}
     </style>
 </head>
 <body>
@@ -200,6 +225,11 @@
     </div>
 
     <div class="contact-container">
+        <div class="page-mobile-nav">
+        <ion-icon class="menu-toggle" name="menu-outline" style="font-size: 2rem; cursor: pointer; color: #0e6253;"></ion-icon>
+        <h2 style="margin: 0; flex: 1;">Contact Us</h2>
+    </div>
+
         <div class="page-header">
             <h1>Contact Us</h1>
             <p>We're here to help! Reach out to us for any questions or concerns.</p>
@@ -220,7 +250,7 @@
                         <ion-icon name="call-outline" class="info-icon"></ion-icon>
                         <div>
                             <strong>Phone</strong><br>
-                            +91 98765 43210
+                            +91 9936682181
                         </div>
                     </div>
                     <div class="info-item">
@@ -300,6 +330,55 @@
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/brand.js"></script>
+
+    <script>
+// Hamburger menu functionality
+document.addEventListener('DOMContentLoaded', () => {
+    const menuToggle = document.querySelector('.page-mobile-nav .menu-toggle');
+    const sidebar = document.querySelector('.sidebar');
+    
+    if (menuToggle && sidebar) {
+        // Create overlay
+        let overlay = document.querySelector('.sidebar-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'sidebar-overlay';
+            overlay.style.cssText = `
+                display: none;
+                position: fixed;
+                top: 0; left: 0; right: 0; bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 999;
+            `;
+            document.body.appendChild(overlay);
+        }
+        
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('active');
+            overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
+            document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : 'auto';
+        });
+        
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('active');
+            overlay.style.display = 'none';
+            document.body.style.overflow = 'auto';
+        });
+        
+        // Close on link click
+        sidebar.querySelectorAll('a').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('active');
+                    overlay.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+            });
+        });
+    }
+});
+</script>
+
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const contactForm = document.getElementById('contact-form');
