@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap" rel="stylesheet">
-    <title>CanTech - My Orders</title>
+    <title>Onlineपेटपूजा - My Orders</title>
     <style>
         .orders-container {
             margin-left: 300px;
@@ -289,6 +289,31 @@
                 justify-content: flex-start;
             }
         }
+
+        .page-mobile-nav {
+        display: none;
+        padding: 1rem;
+        background: white;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        margin: -2rem -2rem 2rem -2rem; 
+        }
+        @media screen and (max-width: 768px) {
+        .page-mobile-nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin: -1rem -1rem 1rem -1rem; 
+    }
+    
+    .page-mobile-nav h2 {  
+        margin: 0;
+        flex: 1;
+        font-size: 1.2rem;
+    }
+}
     </style>
 </head>
 <body>
@@ -309,6 +334,11 @@
     </div>
 
     <div class="orders-container">
+        <div class="page-mobile-nav">
+        <ion-icon class="menu-toggle" name="menu-outline" style="font-size: 2rem; cursor: pointer; color: #0e6253;"></ion-icon>
+        <h2 style="margin: 0; flex: 1;">Orders Placed</h2>
+        </div>
+
         <div class="page-header">
             <h1>My Orders</h1>
             <p>Track your orders in real-time</p>
