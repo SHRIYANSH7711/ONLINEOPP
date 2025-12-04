@@ -66,6 +66,30 @@ class CanTechApp {
     }
 }
 
+getImageHTML(imageUrl, itemName, className = 'detail-img') {
+    if (imageUrl && imageUrl !== 'images/food/default.jpg') {
+        // Has a real image URL
+        return `
+            <img class="${className}" 
+                 src="${imageUrl}" 
+                 alt="${itemName}" 
+                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+            <div class="image-placeholder" style="display: none;">
+                🍽️
+                <span class="no-image-text">${itemName}</span>
+            </div>
+        `;
+    } else {
+        // No image - show placeholder
+        return `
+            <div class="image-placeholder">
+                🍽️
+                <span class="no-image-text">${itemName}</span>
+            </div>
+        `;
+    }
+}
+
     async loadUserData() {
         try {
             const user = auth.getCurrentUser();
@@ -117,82 +141,85 @@ class CanTechApp {
     }
 
     renderOutlets() {
-        const container = document.getElementById('outlets-container');
-        if (!container) return;
+    const container = document.getElementById('outlets-container');
+    if (!container) return;
 
-        const outletsHTML = this.outlets.map(outlet => `
+    const outletsHTML = this.outlets.map(outlet => {
+        const outletSlug = outlet.toLowerCase().replace(/\s+/g, '_');
+        return `
             <div class="filter-card" onclick="app.filterByOutlet('${outlet}')">
                 <div class="filter-icon">
-                    <img class="filter-img" src="images/outlets/${outlet.toLowerCase().replace(/\s+/g, '_')}.jpg" 
-                         alt="${outlet}" onerror="this.src='images/outlets/default.jpg'">
+                    <div class="image-placeholder filter-img-placeholder">
+                        ${outlet.charAt(0)}
+                    </div>
                 </div>
                 <p>${outlet}</p>
             </div>
-        `).join('');
-
-        container.innerHTML = `
-            <div class="filter-card" onclick="app.filterByOutlet('All')">
-                <div class="filter-icon">
-                    <img class="filter-img" src="images/outlets/all.jpg" alt="All" onerror="this.src='images/outlets/default.jpg'">
-                </div>
-                <p>All</p>
-            </div>
-            ${outletsHTML}
         `;
-    }
+    }).join('');
+
+    container.innerHTML = `
+        <div class="filter-card" onclick="app.filterByOutlet('All')">
+            <div class="filter-icon">
+                <div class="image-placeholder filter-img-placeholder">
+                    All
+                </div>
+            </div>
+            <p>All</p>
+        </div>
+        ${outletsHTML}
+    `;
+}
+
 
     renderPopularItems() {
         const container = document.getElementById('popular-items');
         if (!container) return;
-
-        // Get first 4 items as popular (you can implement actual popularity logic)
+        
         const popularItems = this.menuItems.slice(0, 4);
-
+        
         const popularHTML = popularItems.map(item => `
             <div class="highlight-card" onclick="app.addToCart(${item.id})">
-                <img class="highlight-img" src="${item.image_url || 'images/food/default.jpg'}" 
-                     alt="${item.name}" onerror="this.src='images/food/default.jpg'">
-                <div class="highlight-desc">
-                    <h4>${item.name}</h4>
-                    <p style="color: #a7a7a7;">${item.outlet_name}</p>
-                    <p>₹${parseFloat(item.price).toFixed(2)}</p>
-                    <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
-                        Add to Cart
-                    </button>
-                </div>
+            ${this.getImageHTML(item.image_url, item.name, 'highlight-img')}
+            <div class="highlight-desc">
+                <h4>${item.name}</h4>
+                <p style="color: #a7a7a7;">${item.outlet_name}</p>
+                <p>₹${parseFloat(item.price).toFixed(2)}</p>
+                <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
+                    Add to Cart
+                </button>
             </div>
+        </div>
         `).join('');
-
+        
         container.innerHTML = popularHTML;
     }
 
     renderAllMenuItems(filterOutlet = 'All') {
         const container = document.getElementById('menu');
         if (!container) return;
-
+        
         let itemsToShow = this.menuItems;
         if (filterOutlet !== 'All') {
             itemsToShow = this.menuItems.filter(item => item.outlet_name === filterOutlet);
         }
-
+        
         const menuHTML = itemsToShow.map(item => `
             <div class="detail-card" data-category="${item.outlet_name}">
-                <img class="detail-img" src="${item.image_url || 'images/food/default.jpg'}" 
-                     alt="${item.name}" onerror="this.src='images/food/default.jpg'">
-                <div class="detail-desc">
-                    <div class="detail-name">
-                        <h4>${item.name}</h4>
-                        <p class="detail-sub">${item.outlet_name}</p>
-                        <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
-                        <button class="add-to-cart-btn" onclick="app.addToCart(${item.id})">
-                            Add To Cart
-                        </button>
-                    </div>
-                    <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
+            ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
+            <div class="detail-desc">
+                <div class="detail-name">
+                    <h4>${item.name}</h4>
+                    <p class="detail-sub">${item.outlet_name}</p>
+                    <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
+                    <button class="add-to-cart-btn" onclick="app.addToCart(${item.id})">
+                        Add To Cart
+                    </button>
                 </div>
+                <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
             </div>
+        </div>
         `).join('');
-
         container.innerHTML = menuHTML;
     }
 
@@ -473,3 +500,4 @@ function closeCart() {
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new CanTechApp();
 });
+
