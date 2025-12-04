@@ -406,37 +406,58 @@
                     <label for="item-name">Item Name *</label>
                     <input type="text" id="item-name" required>
                 </div>
-                <div class="form-group">
-                    <label for="item-price">Price (₹) *</label>
-                    <input type="number" id="item-price" step="0.01" min="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="item-category">Category</label>
-                    <select id="item-category">
-                        <option value="">Select category (optional)</option>
-                        <option value="Breakfast">Breakfast</option>
-                        <option value="Main Course">Main Course</option>
-                        <option value="Snacks">Snacks</option>
-                        <option value="Beverages">Beverages</option>
-                        <option value="Street Food">Street Food</option>
-                        <option value="Chinese">Chinese</option>
-                        <option value="South Indian">South Indian</option>
-                        <option value="North Indian">North Indian</option>
-                        <option value="Rice">Rice</option>
-                        <option value="Bread">Bread</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="item-description">Description</label>
-                    <textarea id="item-description" placeholder="Describe your item..."></textarea>
-                </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">
-                    <ion-icon name="checkmark-circle-outline"></ion-icon>
-                    <span id="submit-btn-text">Add Item</span>
-                </button>
-            </form>
-        </div>
-    </div>
+                <form id="item-form">
+                    <div class="form-group">
+                        <label for="item-name">Item Name *</label>
+                        <input type="text" id="item-name" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="item-price">Price (₹) *</label>
+                        <input type="number" id="item-price" step="0.01" min="0.01" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-category">Category</label>
+                        <select id="item-category">
+                            <option value="">Select category (optional)</option>
+                            <option value="Breakfast">Breakfast</option>
+                            <option value="Main Course">Main Course</option>
+                            <option value="Snacks">Snacks</option>
+                            <option value="Beverages">Beverages</option>
+                            <option value="Street Food">Street Food</option>
+                            <option value="Chinese">Chinese</option>
+                            <option value="South Indian">South Indian</option>
+                            <option value="North Indian">North Indian</option>
+                            <option value="Rice">Rice</option>
+                            <option value="Bread">Bread</option>
+                            <option value="Dessert">Dessert</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-image">Image URL (Optional)</label>
+                        <input type="url" id="item-image" placeholder="https://example.com/image.jpg">
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            Paste a direct image URL (JPG, PNG, WebP). Try: 
+                            <a href="https://unsplash.com" target="_blank" style="color: #0e6253;">Unsplash</a> or 
+                            <a href="https://www.pexels.com" target="_blank" style="color: #0e6253;">Pexels</a>
+                        </small>
+                    </div>
+                    <div class="form-group" id="image-preview-container" style="display: none;">
+                        <label>Image Preview</label>
+                        <div style="max-width: 200px; margin-top: 10px;">
+                            <img id="image-preview" style="width: 100%; border-radius: 8px; border: 2px solid #ddd;">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="item-description">Description</label>
+                        <textarea id="item-description" placeholder="Describe your item..."></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary" style="width: 100%;">
+                        <ion-icon name="checkmark-circle-outline"></ion-icon>
+                        <span id="submit-btn-text">Add Item</span>
+                    </button>
+                </form>
+            </div>
 
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -622,38 +643,49 @@
         }
 
         function displayMenuItems(items) {
-            const container = document.getElementById('menu-items');
-            
-            if (items.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No menu items yet. Click "Add New Item" to get started!</p></div>';
-                return;
-            }
+    const container = document.getElementById('menu-items');
+    
+    if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No menu items yet. Click "Add New Item" to get started!</p></div>';
+        return;
+    }
 
-            container.innerHTML = items.map(item => `
-                <div class="menu-card">
-                    <div class="menu-card-info">
-                        <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
-                        <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
-                        ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
-                    </div>
-                    <div class="menu-card-actions">
-                        <label class="switch">
-                            <input type="checkbox" 
-                                   ${item.is_available ? 'checked' : ''} 
-                                   onchange="toggleAvailability(${item.id}, this.checked)">
-                            <span class="switch-slider"></span>
-                        </label>
-                        <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
-                        <button class="btn-edit" onclick="editItem(${item.id})">
-                            <ion-icon name="create-outline"></ion-icon> Edit
-                        </button>
-                        <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name}')">
-                            <ion-icon name="trash-outline"></ion-icon> Delete
-                        </button>
-                    </div>
+    container.innerHTML = items.map(item => {
+        const imageHTML = item.image_url 
+            ? `<img src="${item.image_url}" 
+                    class="vendor-menu-item-img" 
+                    alt="${item.name}"
+                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+               <div class="vendor-menu-item-img-placeholder" style="display: none;">🍽️</div>`
+            : `<div class="vendor-menu-item-img-placeholder">🍽️</div>`;
+        
+        return `
+            <div class="menu-card">
+                ${imageHTML}
+                <div class="menu-card-info">
+                    <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
+                    <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
+                    ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
                 </div>
-            `).join('');
-        }
+                <div class="menu-card-actions">
+                    <label class="switch">
+                        <input type="checkbox" 
+                               ${item.is_available ? 'checked' : ''} 
+                               onchange="toggleAvailability(${item.id}, this.checked)">
+                        <span class="switch-slider"></span>
+                    </label>
+                    <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
+                    <button class="btn-edit" onclick="editItem(${item.id})">
+                        <ion-icon name="create-outline"></ion-icon> Edit
+                    </button>
+                    <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name}')">
+                        <ion-icon name="trash-outline"></ion-icon> Delete
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
 
         function openAddItemModal() {
             editingItemId = null;
@@ -666,7 +698,6 @@
         function editItem(itemId) {
             const item = currentMenuItems.find(i => i.id === itemId);
             if (!item) return;
-
             editingItemId = itemId;
             document.getElementById('modal-title').textContent = 'Edit Item';
             document.getElementById('submit-btn-text').textContent = 'Update Item';
@@ -674,8 +705,30 @@
             document.getElementById('item-price').value = item.price;
             document.getElementById('item-category').value = item.category || '';
             document.getElementById('item-description').value = item.description || '';
+            document.getElementById('item-image').value = item.image_url || '';  
+            // Trigger image preview 
+            document.getElementById('item-image').dispatchEvent(new Event('input'));
             document.getElementById('item-modal').classList.add('active');
         }
+
+        // Image preview functionality
+        document.getElementById('item-image').addEventListener('input', function() {
+            const imageUrl = this.value.trim();
+            const previewContainer = document.getElementById('image-preview-container');
+            const previewImg = document.getElementById('image-preview');
+            
+            if (imageUrl) {
+                previewImg.src = imageUrl;
+                previewImg.onerror = function() {
+                    previewContainer.style.display = 'none';
+                };
+                previewImg.onload = function() {
+                    previewContainer.style.display = 'block';
+                };
+            } else {
+                previewContainer.style.display = 'none';
+            }
+        });
 
         function closeItemModal() {
             document.getElementById('item-modal').classList.remove('active');
@@ -685,14 +738,15 @@
 
         document.getElementById('item-form').addEventListener('submit', async (e) => {
             e.preventDefault();
-
+            
             const itemData = {
                 name: document.getElementById('item-name').value,
                 price: parseFloat(document.getElementById('item-price').value),
                 category: document.getElementById('item-category').value || null,
-                description: document.getElementById('item-description').value || null
+                description: document.getElementById('item-description').value || null,
+                image_url: document.getElementById('item-image').value.trim() || null
             };
-
+            
             try {
                 if (editingItemId) {
                     await api.updateMenuItem(editingItemId, itemData);
@@ -701,7 +755,6 @@
                     await api.addMenuItem(itemData);
                     showNotification('Item added successfully!');
                 }
-                
                 closeItemModal();
                 await loadMenuItems();
             } catch (error) {
@@ -709,7 +762,6 @@
                 showNotification(error.message, 'error');
             }
         });
-
         async function deleteItem(itemId, itemName) {
             if (!confirm(`Are you sure you want to delete "${itemName}"?`)) {
                 return;
