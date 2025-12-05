@@ -277,52 +277,73 @@ body {
 }
 
 .highlight-wrapper::-webkit-scrollbar {
-    height: 6px;
+    height: 8px;
 }
 
 .highlight-wrapper::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 3px;
+    background: #f1f1f1;
+    border-radius: 10px;
 }
 
 .highlight-wrapper::-webkit-scrollbar-thumb {
-    background: var(--primaryColor);
-    border-radius: 3px;
+    background: #0e6253;
+    border-radius: 10px;
+}
+
+.highlight-wrapper::-webkit-scrollbar-thumb:hover {
+    background: #16a085;
 }
 
 .highlight-card {
-    min-width: 280px;
-    background: var(--whiteColor);
-    border-radius: 12px;
-    padding: 1.5rem;
-    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+    background: white;
+    border-radius: 15px;
+    overflow: hidden;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    min-width: 250px;
+    flex-shrink: 0;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
 }
 
 .highlight-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 .highlight-img {
     width: 100%;
-    height: 120px;
-    border-radius: 8px;
+    height: 150px;
     object-fit: cover;
-    margin-bottom: 1rem;
+    display: block;
+}
+
+.highlight-desc {
+    padding: 1rem;
+    background: white;
 }
 
 .highlight-desc h4 {
-    color: var(--primaryColor);
+    margin: 0 0 0.5rem 0;
     font-size: 1.1rem;
-    margin-bottom: 0.5rem;
+    font-weight: 700;
+    color: #2c3e50;  /* Dark, highly visible color */
 }
 
 .highlight-desc p {
-    color: var(--darkGreyColor);
-    font-size: 14px;
-    margin-bottom: 0.5rem;
+    margin: 0.3rem 0;
+    font-size: 0.95rem;
+}
+
+.highlight-desc p:first-of-type {
+    color: #7f8c8d;  /* Outlet name - medium gray */
+    font-weight: 500;
+}
+
+.highlight-desc p:last-of-type {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: #0e6253;  /* Price - primary green */
+    margin: 0.5rem 0;
 }
 
 /* Menu sections */
@@ -405,28 +426,30 @@ body {
 .detail-wrapper {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 2rem;
+    gap: 1.5rem;
+    margin-top: 1rem;
 }
 
 .detail-card {
-    background: var(--whiteColor);
+    background: white;
     border-radius: 15px;
     overflow: hidden;
-    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.1);
-    transition: all 0.3s ease;
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
     cursor: pointer;
+    position: relative;
 }
 
 .detail-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
 }
 
 .detail-img {
     width: 100%;
     height: 200px;
     object-fit: cover;
-    transition: all 0.3s ease;
+    display: block;
 }
 
 .detail-card:hover .detail-img {
@@ -434,16 +457,22 @@ body {
 }
 
 .detail-desc {
-    padding: 1.5rem;
+    padding: 1rem;
+    background: white;
+}
+
+.detail-name {
     display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 .detail-name h4 {
+    margin: 0;
     font-size: 1.1rem;
-    margin-bottom: 0.5rem;
-    color: var(--blackColor);
+    font-weight: 700;
+    color: #2c3e50;  /* Dark, highly visible color */
+    line-height: 1.3;
 }
 
 .detail-card:hover .detail-name h4 {
@@ -451,22 +480,30 @@ body {
 }
 
 .detail-sub {
-    color: var(--darkGreyColor);
-    font-size: 13px;
-    margin-bottom: 0.5rem;
+    color: #7f8c8d;  /* Medium gray for outlet name */
+    font-size: 0.9rem;
+    font-weight: 500;
+    margin: 0;
 }
 
 .price {
-    color: var(--primaryColor);
-    font-weight: 600;
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #0e6253;  /* Primary green color */
+    margin: 0.5rem 0;
 }
 
 .detail-favorites {
-    font-size: 24px;
-    color: var(--darkGreyColor);
-    transition: color 0.3s ease;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 1.5rem;
+    color: #e74c3c;
+    cursor: pointer;
+    background: white;
+    border-radius: 50%;
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
 .detail-card:hover .detail-favorites {
@@ -476,21 +513,21 @@ body {
 /* Buttons */
 .add-to-cart-btn {
     width: 100%;
-    padding: 12px;
-    background: linear-gradient(135deg, var(--primaryColor), #0a5a4a);
-    color: var(--whiteColor);
+    padding: 10px;
+    background: linear-gradient(135deg, #0e6253, #16a085);
+    color: white;
     border: none;
     border-radius: 8px;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
+    margin-top: 0.5rem;
 }
 
 .add-to-cart-btn:hover {
-    background: linear-gradient(135deg, var(--secondaryColor), #e6b800);
-    color: var(--blackColor);
-    transform: translateY(-2px);
+    background: linear-gradient(135deg, #16a085, #0e6253);
+    transform: scale(1.02);
 }
 
 /* Cart popup */
@@ -694,8 +731,20 @@ body {
     }
 
     .detail-wrapper {
-        grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
         gap: 1rem;
+    }
+
+    .highlight-card {
+        min-width: 200px;
+    }
+
+    .detail-name h4 {
+        font-size: 1rem;
+    }
+
+    .price {
+        font-size: 1.1rem;
     }
 
     .main-filter {
@@ -922,8 +971,6 @@ body {
     }
     
     .highlight-card {
-        flex: 0 0 180px;
-        max-width: 180px;
         min-width: 180px;
     }
     
@@ -1642,15 +1689,17 @@ img[src="images/outlets/default.jpg"]::after {
 /* Placeholder styles when image is loading or missing */
 .image-placeholder {
     width: 100%;
-    height: 200px;
+    height: 100%;
+    background: linear-gradient(135deg, #ecf0f1, #bdc3c7);
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #e8f5e9, #c8e6c9);
     border-radius: 10px;
-    font-size: 4rem;
-    color: #4caf50;
-    position: relative;
+    font-size: 3rem;
+    color: #7f8c8d;
+    text-align: center;
+    padding: 1rem;
 }
 
 .filter-img-placeholder {
@@ -1862,10 +1911,11 @@ img[loading="lazy"] {
 }
 
 .no-image-text {
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     margin-top: 0.5rem;
-    color: #666;
-    font-weight: normal;
+    color: #34495e;  /* Dark gray for better visibility */
+    font-weight: 600;
+    text-align: center;
 }
 
 /* Ensure images don't blink on load */

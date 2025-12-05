@@ -230,56 +230,56 @@ class CanTechApp {
     }
 
     renderPopularItems() {
-        const container = document.getElementById('popular-items');
-        if (!container) return;
-        
-        const popularItems = this.menuItems.slice(0, 4);
-        
-        const popularHTML = popularItems.map(item => `
-            <div class="highlight-card" onclick="app.addToCart(${item.id})">
-                ${this.getImageHTML(item.image_url, item.name, 'highlight-img')}
-                <div class="highlight-desc">
-                    <h4>${item.name}</h4>
-                    <p style="color: #a7a7a7;">${item.outlet_name}</p>
-                    <p>₹${parseFloat(item.price).toFixed(2)}</p>
-                    <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
-                        Add to Cart
-                    </button>
-                </div>
+    const container = document.getElementById('popular-items');
+    if (!container) return;
+    
+    const popularItems = this.menuItems.slice(0, 4);
+    
+    const popularHTML = popularItems.map(item => `
+        <div class="highlight-card" onclick="app.addToCart(${item.id})">
+            ${this.getImageHTML(item.image_url, item.name, 'highlight-img')}
+            <div class="highlight-desc">
+                <h4>${item.name}</h4>
+                <p style="color: #7f8c8d; font-weight: 500;">${item.outlet_name}</p>
+                <p style="font-size: 1.15rem; font-weight: 700; color: #0e6253;">₹${parseFloat(item.price).toFixed(2)}</p>
+                <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
+                    Add to Cart
+                </button>
             </div>
+        </div>
         `).join('');
         
         container.innerHTML = popularHTML;
     }
 
     renderAllMenuItems(filterOutlet = 'All') {
-        const container = document.getElementById('menu');
-        if (!container) return;
-        
-        let itemsToShow = this.menuItems;
-        if (filterOutlet !== 'All') {
-            itemsToShow = this.menuItems.filter(item => item.outlet_name === filterOutlet);
-        }
-        
-        const menuHTML = itemsToShow.map(item => `
-            <div class="detail-card" data-category="${item.outlet_name}">
-                ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
-                <div class="detail-desc">
-                    <div class="detail-name">
-                        <h4>${item.name}</h4>
-                        <p class="detail-sub">${item.outlet_name}</p>
-                        <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
-                        <button class="add-to-cart-btn" onclick="app.addToCart(${item.id})">
-                            Add To Cart
-                        </button>
-                    </div>
-                    <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
+    const container = document.getElementById('menu');
+    if (!container) return;
+    
+    let itemsToShow = this.menuItems;
+    if (filterOutlet !== 'All') {
+        itemsToShow = this.menuItems.filter(item => item.outlet_name === filterOutlet);
+    }
+    
+    const menuHTML = itemsToShow.map(item => `
+        <div class="detail-card" data-category="${item.outlet_name}">
+            ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
+            <div class="detail-desc">
+                <div class="detail-name">
+                    <h4>${item.name}</h4>
+                    <p class="detail-sub">${item.outlet_name}</p>
+                    <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
+                    <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
+                        Add To Cart
+                    </button>
                 </div>
+                <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
             </div>
+        </div>
         `).join('');
-        
         container.innerHTML = menuHTML;
     }
+
 
     filterByOutlet(outlet) {
         this.renderAllMenuItems(outlet);
@@ -321,39 +321,40 @@ class CanTechApp {
     }
 
     filterMenuItems(query) {
-        const menuContainer = document.getElementById('menu');
-        if (!menuContainer) return;
+    const menuContainer = document.getElementById('menu');
+    if (!menuContainer) return;
 
-        const filteredItems = this.menuItems.filter(item =>
-            item.name.toLowerCase().includes(query) ||
-            item.outlet_name.toLowerCase().includes(query) ||
-            (item.category && item.category.toLowerCase().includes(query))
-        );
+    const filteredItems = this.menuItems.filter(item =>
+        item.name.toLowerCase().includes(query) ||
+        item.outlet_name.toLowerCase().includes(query) ||
+        (item.category && item.category.toLowerCase().includes(query))
+    );
 
-        if (filteredItems.length === 0) {
-            menuContainer.innerHTML = '<div class="no-results">No items found matching your search.</div>';
-            return;
-        }
+    if (filteredItems.length === 0) {
+        menuContainer.innerHTML = '<div class="no-results">No items found matching your search.</div>';
+        return;
+    }
 
-        const menuHTML = filteredItems.map(item => `
-            <div class="detail-card" data-category="${item.outlet_name}">
-                ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
-                <div class="detail-desc">
-                    <div class="detail-name">
-                        <h4>${item.name}</h4>
-                        <p class="detail-sub">${item.outlet_name}</p>
-                        <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
-                        <button class="add-to-cart-btn" onclick="app.addToCart(${item.id})">
-                            Add To Cart
-                        </button>
-                    </div>
-                    <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
+    const menuHTML = filteredItems.map(item => `
+        <div class="detail-card" data-category="${item.outlet_name}">
+            ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
+            <div class="detail-desc">
+                <div class="detail-name">
+                    <h4>${item.name}</h4>
+                    <p class="detail-sub">${item.outlet_name}</p>
+                    <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
+                    <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
+                        Add To Cart
+                    </button>
                 </div>
+                <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
             </div>
+        </div>
         `).join('');
-
+        
         menuContainer.innerHTML = menuHTML;
     }
+
 
     addToCart(menuItemId) {
         const item = this.menuItems.find(item => item.id === menuItemId);
