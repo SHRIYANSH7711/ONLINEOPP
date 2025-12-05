@@ -291,29 +291,30 @@
         }
 
         .page-mobile-nav {
-        display: none;
-        padding: 1rem;
-        background: white;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        margin: -2rem -2rem 2rem -2rem; 
+            display: none;
+            padding: 1rem;
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin: -2rem -2rem 2rem -2rem; 
         }
+        
         @media screen and (max-width: 768px) {
-        .page-mobile-nav {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin: -1rem -1rem 1rem -1rem; 
-    }
-    
-    .page-mobile-nav h2 {  
-        margin: 0;
-        flex: 1;
-        font-size: 1.2rem;
-    }
-}
+            .page-mobile-nav {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                margin: -1rem -1rem 1rem -1rem; 
+            }
+            
+            .page-mobile-nav h2 {  
+                margin: 0;
+                flex: 1;
+                font-size: 1.2rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -335,8 +336,8 @@
 
     <div class="orders-container">
         <div class="page-mobile-nav">
-        <ion-icon class="menu-toggle" name="menu-outline" style="font-size: 2rem; cursor: pointer; color: #0e6253;"></ion-icon>
-        <h2 style="margin: 0; flex: 1;">Orders Placed</h2>
+            <ion-icon class="menu-toggle" name="menu-outline" style="font-size: 2rem; cursor: pointer; color: #0e6253;"></ion-icon>
+            <h2>My Orders</h2>
         </div>
 
         <div class="page-header">
@@ -375,6 +376,79 @@
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/brand.js"></script>
+    
+    <!-- HAMBURGER MENU SCRIPT - ADD THIS BEFORE OTHER SCRIPTS -->
+    <script>
+        // Initialize hamburger menu FIRST
+        (function() {
+            function setupHamburgerMenu() {
+                const menuToggle = document.querySelector('.page-mobile-nav .menu-toggle');
+                const sidebar = document.querySelector('.sidebar');
+                
+                if (!menuToggle || !sidebar) {
+                    console.warn('Menu elements not found');
+                    return;
+                }
+
+                // Create overlay
+                let overlay = document.querySelector('.sidebar-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.className = 'sidebar-overlay';
+                    overlay.style.cssText = `
+                        display: none;
+                        position: fixed;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(0, 0, 0, 0.5);
+                        z-index: 999;
+                        transition: opacity 0.3s ease;
+                    `;
+                    document.body.appendChild(overlay);
+                }
+                
+                // Toggle function
+                function toggleMenu(e) {
+                    e.stopPropagation();
+                    const isActive = sidebar.classList.toggle('active');
+                    menuToggle.classList.toggle('is-active');
+                    overlay.style.display = isActive ? 'block' : 'none';
+                    document.body.style.overflow = isActive ? 'hidden' : 'auto';
+                }
+
+                // Close function
+                function closeMenu() {
+                    sidebar.classList.remove('active');
+                    menuToggle.classList.remove('is-active');
+                    overlay.style.display = 'none';
+                    document.body.style.overflow = 'auto';
+                }
+                
+                // Add event listeners
+                menuToggle.addEventListener('click', toggleMenu);
+                overlay.addEventListener('click', closeMenu);
+                
+                // Close on link click (mobile)
+                sidebar.querySelectorAll('a').forEach(link => {
+                    link.addEventListener('click', () => {
+                        if (window.innerWidth <= 768) {
+                            closeMenu();
+                        }
+                    });
+                });
+
+                console.log('✅ Hamburger menu initialized on orders-placed.html');
+            }
+
+            // Run on DOM ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', setupHamburgerMenu);
+            } else {
+                setupHamburgerMenu();
+            }
+        })();
+    </script>
+    
+    <!-- ORDERS PAGE LOGIC - ADD AFTER HAMBURGER SCRIPT -->
     <script>
         class OrdersPlacedPage {
             constructor() {
@@ -404,7 +478,6 @@
             }
 
             startAutoRefresh() {
-                // Auto-refresh every 30 seconds
                 setInterval(() => {
                     this.loadOrders();
                 }, 30000);
@@ -413,7 +486,6 @@
             filterOrders(status) {
                 this.currentFilter = status;
                 
-                // Update active tab
                 document.querySelectorAll('.filter-tab').forEach(tab => {
                     tab.classList.remove('active');
                 });
