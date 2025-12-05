@@ -24,8 +24,109 @@
 
         .settings-card h3 {
             color: var(--primaryColor);
-            margin-bottom: 1rem;
+            margin-bottom: 1.5rem;
             font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .profile-photo-section {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .profile-avatar-large {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primaryColor), var(--secondaryColor));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            color: white;
+            font-weight: bold;
+        }
+
+        .profile-photo-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .profile-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+
+        .form-group input:focus {
+            border-color: var(--primaryColor);
+            outline: none;
+        }
+
+        .form-group input:disabled {
+            background: #f5f5f5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: var(--primaryColor);
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            background: var(--secondaryColor);
+            color: var(--blackColor);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--primaryColor);
+            padding: 10px 20px;
+            border: 2px solid var(--primaryColor);
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .btn-secondary:hover {
+            background: var(--primaryColor);
+            color: white;
         }
 
         .setting-item {
@@ -93,50 +194,41 @@
             transform: translateX(26px);
         }
 
-        .profile-section {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-        }
-
-        .form-group {
-            margin-bottom: 1rem;
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 600;
-        }
-
-        .form-group input {
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
             width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
         }
 
-        .form-group input:focus {
-            border-color: var(--primaryColor);
-            outline: none;
+        .modal.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
-        .btn-primary {
-            background: var(--primaryColor);
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: 8px;
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 15px;
+            max-width: 500px;
+            width: 90%;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .close-modal {
+            font-size: 2rem;
             cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            transition: all 0.3s ease;
-        }
-
-        .btn-primary:hover {
-            background: var(--secondaryColor);
-            color: var(--blackColor);
         }
 
         @media screen and (max-width: 768px) {
@@ -148,32 +240,39 @@
             .profile-section {
                 grid-template-columns: 1fr;
             }
+
+            .profile-photo-section {
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+            }
         }
 
         .page-mobile-nav {
-        display: none;
-        padding: 1rem;
-        background: white;
-        position: sticky;
-        top: 0;
-        z-index: 100;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-        margin: -2rem -2rem 2rem -2rem; 
+            display: none;
+            padding: 1rem;
+            background: white;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin: -2rem -2rem 2rem -2rem;
         }
+
         @media screen and (max-width: 768px) {
-        .page-mobile-nav {
-        display: flex;
-        align-items: center;
-        gap: 1rem;
-        margin: -1rem -1rem 1rem -1rem; 
-    }
-    
-    .page-mobile-nav h2 {  
-        margin: 0;
-        flex: 1;
-        font-size: 1.2rem;
-    }
-}
+            .page-mobile-nav {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                margin: -1rem -1rem 1rem -1rem;
+            }
+            
+            .page-mobile-nav h2 {
+                margin: 0;
+                flex: 1;
+                font-size: 1.2rem;
+            }
+        }
     </style>
 </head>
 <body>
@@ -195,12 +294,25 @@
 
     <div class="settings-container">
         <div class="page-mobile-nav">
-        <ion-icon class="menu-toggle" name="menu-outline" style="font-size: 2rem; cursor: pointer; color: #0e6253;"></ion-icon>
-        <h2 style="margin: 0; flex: 1;">Settings</h2>
+            <ion-icon class="menu-toggle" name="menu-outline" style="font-size: 2rem; cursor: pointer; color: #0e6253;"></ion-icon>
+            <h2>Settings</h2>
         </div>
 
         <div class="settings-card">
-            <h3>Profile Settings</h3>
+            <h3><ion-icon name="person-outline"></ion-icon> Profile Settings</h3>
+            
+            <div class="profile-photo-section">
+                <div class="profile-avatar-large" id="profile-avatar">U</div>
+                <div class="profile-photo-actions">
+                    <p><strong>Profile Photo</strong></p>
+                    <p style="color: #666; font-size: 0.9rem;">Upload a photo or use your initials</p>
+                    <input type="file" id="photo-upload" accept="image/*" style="display: none;">
+                    <button class="btn-secondary" onclick="document.getElementById('photo-upload').click()">
+                        Upload Photo
+                    </button>
+                </div>
+            </div>
+
             <div class="profile-section">
                 <div class="form-group">
                     <label for="user-name">Full Name</label>
@@ -208,14 +320,26 @@
                 </div>
                 <div class="form-group">
                     <label for="user-email">Email</label>
-                    <input type="email" id="user-email" placeholder="Enter your email" readonly>
+                    <input type="email" id="user-email" placeholder="Enter your email">
                 </div>
             </div>
             <button class="btn-primary" onclick="updateProfile()">Update Profile</button>
         </div>
 
         <div class="settings-card">
-            <h3>App Preferences</h3>
+            <h3><ion-icon name="lock-closed-outline"></ion-icon> Security</h3>
+            
+            <div class="setting-item">
+                <div>
+                    <div class="setting-label">Change Password</div>
+                    <div class="setting-description">Update your account password</div>
+                </div>
+                <button class="btn-primary" onclick="openPasswordModal()">Change</button>
+            </div>
+        </div>
+
+        <div class="settings-card">
+            <h3><ion-icon name="settings-outline"></ion-icon> App Preferences</h3>
             
             <div class="setting-item">
                 <div>
@@ -250,16 +374,30 @@
                 </label>
             </div>
         </div>
+    </div>
 
-        <div class="settings-card">
-            <h3>Account Actions</h3>
-            <div class="setting-item">
-                <div>
-                    <div class="setting-label">Change Password</div>
-                    <div class="setting-description">Update your account password</div>
-                </div>
-                <button class="btn-primary" onclick="changePassword()">Change</button>
+    <!-- Password Change Modal -->
+    <div id="password-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Change Password</h2>
+                <span class="close-modal" onclick="closePasswordModal()">&times;</span>
             </div>
+            <form id="password-form">
+                <div class="form-group full-width">
+                    <label for="current-password">Current Password</label>
+                    <input type="password" id="current-password" required>
+                </div>
+                <div class="form-group full-width">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" minlength="6" required>
+                </div>
+                <div class="form-group full-width">
+                    <label for="confirm-password">Confirm New Password</label>
+                    <input type="password" id="confirm-password" minlength="6" required>
+                </div>
+                <button type="submit" class="btn-primary" style="width: 100%;">Change Password</button>
+            </form>
         </div>
     </div>
 
@@ -268,70 +406,63 @@
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
     <script src="js/brand.js"></script>
-        <script>
-// Hamburger menu functionality
-document.addEventListener('DOMContentLoaded', () => {
-    const menuToggle = document.querySelector('.page-mobile-nav .menu-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    
-    if (menuToggle && sidebar) {
-        // Create overlay
-        let overlay = document.querySelector('.sidebar-overlay');
-        if (!overlay) {
-            overlay = document.createElement('div');
-            overlay.className = 'sidebar-overlay';
-            overlay.style.cssText = `
-                display: none;
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                background: rgba(0, 0, 0, 0.5);
-                z-index: 999;
-            `;
-            document.body.appendChild(overlay);
-        }
-        
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('active');
-            overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
-            document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : 'auto';
-        });
-        
-        overlay.addEventListener('click', () => {
-            sidebar.classList.remove('active');
-            overlay.style.display = 'none';
-            document.body.style.overflow = 'auto';
-        });
-        
-        // Close on link click
-        sidebar.querySelectorAll('a').forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
+    <script>
+        // Mobile menu
+        document.addEventListener('DOMContentLoaded', () => {
+            const menuToggle = document.querySelector('.page-mobile-nav .menu-toggle');
+            const sidebar = document.querySelector('.sidebar');
+            
+            if (menuToggle && sidebar) {
+                let overlay = document.querySelector('.sidebar-overlay');
+                if (!overlay) {
+                    overlay = document.createElement('div');
+                    overlay.className = 'sidebar-overlay';
+                    overlay.style.cssText = `
+                        display: none;
+                        position: fixed;
+                        top: 0; left: 0; right: 0; bottom: 0;
+                        background: rgba(0, 0, 0, 0.5);
+                        z-index: 999;
+                    `;
+                    document.body.appendChild(overlay);
+                }
+                
+                menuToggle.addEventListener('click', () => {
+                    sidebar.classList.toggle('active');
+                    overlay.style.display = sidebar.classList.contains('active') ? 'block' : 'none';
+                    document.body.style.overflow = sidebar.classList.contains('active') ? 'hidden' : 'auto';
+                });
+                
+                overlay.addEventListener('click', () => {
                     sidebar.classList.remove('active');
                     overlay.style.display = 'none';
                     document.body.style.overflow = 'auto';
-                }
-            });
+                });
+            }
+
+            loadUserData();
+            loadPreferences();
         });
-    }
-});
-</script>
-    <script>
-        // Load user data
-        document.addEventListener('DOMContentLoaded', () => {
+
+        function loadUserData() {
             const user = auth.getCurrentUser();
             if (user) {
                 document.getElementById('user-name').value = user.name;
                 document.getElementById('user-email').value = user.email;
+                updateProfileAvatar(user.name);
             }
+        }
 
-            // Load saved preferences
-            loadPreferences();
-        });
+        function updateProfileAvatar(name) {
+            const avatar = document.getElementById('profile-avatar');
+            const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            avatar.textContent = initials;
+        }
 
         function loadPreferences() {
             const darkMode = localStorage.getItem('darkMode') === 'true';
-            const notifications = localStorage.getItem('notifications') !== 'false'; // default true
-            const autoRefresh = localStorage.getItem('autoRefresh') !== 'false'; // default true
+            const notifications = localStorage.getItem('notifications') !== 'false';
+            const autoRefresh = localStorage.getItem('autoRefresh') !== 'false';
 
             document.getElementById('dark-mode').checked = darkMode;
             document.getElementById('notifications').checked = notifications;
@@ -343,20 +474,58 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         function updateProfile() {
-            const name = document.getElementById('user-name').value;
-            if (!name.trim()) {
+            const name = document.getElementById('user-name').value.trim();
+            const email = document.getElementById('user-email').value.trim();
+            
+            if (!name) {
                 alert('Please enter a valid name');
                 return;
             }
 
-            // Here you would call an API to update the profile
-            // For now, just update localStorage
+            if (!email || !email.includes('@')) {
+                alert('Please enter a valid email');
+                return;
+            }
+
             const user = auth.getCurrentUser();
             user.name = name;
+            user.email = email;
             localStorage.setItem('user', JSON.stringify(user));
 
+            updateProfileAvatar(name);
             alert('Profile updated successfully!');
         }
+
+        function openPasswordModal() {
+            document.getElementById('password-modal').classList.add('active');
+        }
+
+        function closePasswordModal() {
+            document.getElementById('password-modal').classList.remove('active');
+            document.getElementById('password-form').reset();
+        }
+
+        document.getElementById('password-form').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('current-password').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            
+            if (newPassword !== confirmPassword) {
+                alert('New passwords do not match');
+                return;
+            }
+
+            if (newPassword.length < 6) {
+                alert('Password must be at least 6 characters long');
+                return;
+            }
+
+            // Note: In production, this should call your backend API
+            alert('Password changed successfully!\n\nNote: Backend API integration required for actual password change.');
+            closePasswordModal();
+        });
 
         function toggleDarkMode() {
             const isDark = document.getElementById('dark-mode').checked;
@@ -373,11 +542,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const enabled = document.getElementById('notifications').checked;
             localStorage.setItem('notifications', enabled);
             
-            if (enabled) {
-                // Request notification permission
-                if ('Notification' in window) {
-                    Notification.requestPermission();
-                }
+            if (enabled && 'Notification' in window) {
+                Notification.requestPermission();
             }
         }
 
@@ -386,16 +552,25 @@ document.addEventListener('DOMContentLoaded', () => {
             localStorage.setItem('autoRefresh', enabled);
         }
 
-        function changePassword() {
-            const newPassword = prompt('Enter new password (minimum 6 characters):');
-            if (!newPassword || newPassword.length < 6) {
-                alert('Password must be at least 6 characters long');
-                return;
+        // Photo upload handler
+        document.getElementById('photo-upload').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    alert('Photo uploaded! (Note: Backend integration needed for storage)');
+                };
+                reader.readAsDataURL(file);
             }
+        });
 
-            // Here you would call an API to change the password
-            alert('Password change functionality will be implemented with backend API');
-        }
+        // Close modal on outside click
+        window.onclick = (event) => {
+            const modal = document.getElementById('password-modal');
+            if (event.target === modal) {
+                closePasswordModal();
+            }
+        };
     </script>
 </body>
 </html>

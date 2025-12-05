@@ -13,82 +13,143 @@ class CanTechApp {
         await this.loadMenuData();
         this.setupSearch();
         this.setupScrolling();
+        this.setupProfileDropdown();
     }
 
     setupEventListeners() {
-    // Mobile menu toggle with overlay
-    const menuToggle = document.querySelector('.menu-toggle');
-    const sidebar = document.querySelector('.sidebar');
-    
-    // Create overlay if it doesn't exist
-    let overlay = document.querySelector('.sidebar-overlay');
-    if (!overlay) {
-        overlay = document.createElement('div');
-        overlay.className = 'sidebar-overlay';
-        document.body.appendChild(overlay);
-    }
+        // Mobile menu toggle with overlay
+        const menuToggle = document.querySelector('.menu-toggle');
+        const sidebar = document.querySelector('.sidebar');
+        
+        // Create overlay if it doesn't exist
+        let overlay = document.querySelector('.sidebar-overlay');
+        if (!overlay) {
+            overlay = document.createElement('div');
+            overlay.className = 'sidebar-overlay';
+            document.body.appendChild(overlay);
+        }
 
-    if (menuToggle && sidebar) {
-        // Toggle sidebar
-        menuToggle.addEventListener('click', () => {
-            menuToggle.classList.toggle('is-active');
-            sidebar.classList.toggle('active');
-            overlay.classList.toggle('active');
-            document.body.classList.toggle('menu-open'); // Prevent body scroll
-        });
-
-        // Close sidebar when clicking overlay
-        overlay.addEventListener('click', () => {
-            menuToggle.classList.remove('is-active');
-            sidebar.classList.remove('active');
-            overlay.classList.remove('active');
-            document.body.classList.remove('menu-open');
-        });
-
-        // Close sidebar when clicking a link on mobile
-        const sidebarLinks = sidebar.querySelectorAll('a');
-        sidebarLinks.forEach(link => {
-            link.addEventListener('click', () => {
-                if (window.innerWidth <= 768) {
-                    menuToggle.classList.remove('is-active');
-                    sidebar.classList.remove('active');
-                    overlay.classList.remove('active');
-                    document.body.classList.remove('menu-open');
-                }
+        if (menuToggle && sidebar) {
+            // Toggle sidebar
+            menuToggle.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menuToggle.classList.toggle('is-active');
+                sidebar.classList.toggle('active');
+                overlay.classList.toggle('active');
+                document.body.classList.toggle('menu-open');
             });
+
+            // Close sidebar when clicking overlay
+            overlay.addEventListener('click', () => {
+                menuToggle.classList.remove('is-active');
+                sidebar.classList.remove('active');
+                overlay.classList.remove('active');
+                document.body.classList.remove('menu-open');
+            });
+
+            // Close sidebar when clicking a link on mobile
+            const sidebarLinks = sidebar.querySelectorAll('a');
+            sidebarLinks.forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.innerWidth <= 768) {
+                        menuToggle.classList.remove('is-active');
+                        sidebar.classList.remove('active');
+                        overlay.classList.remove('active');
+                        document.body.classList.remove('menu-open');
+                    }
+                });
+            });
+        }
+
+        // Checkout button
+        const checkoutBtn = document.getElementById('checkout-btn');
+        if (checkoutBtn) {
+            checkoutBtn.addEventListener('click', () => this.checkout());
+        }
+    }
+
+    setupProfileDropdown() {
+        const profileIcon = document.querySelector('.user');
+        if (!profileIcon) return;
+
+        // Create profile dropdown
+        const dropdown = document.createElement('div');
+        dropdown.className = 'profile-dropdown';
+        dropdown.innerHTML = `
+            <div class="profile-info">
+                <div class="profile-avatar">${this.getInitials()}</div>
+                <div class="profile-details">
+                    <strong id="dropdown-name">Loading...</strong>
+                    <small id="dropdown-email">Loading...</small>
+                </div>
+            </div>
+            <div class="profile-menu">
+                <a href="settings.html" class="profile-menu-item">
+                    <ion-icon name="settings-outline"></ion-icon>
+                    Settings
+                </a>
+                <a href="#" onclick="auth.logout()" class="profile-menu-item">
+                    <ion-icon name="log-out-outline"></ion-icon>
+                    Logout
+                </a>
+            </div>
+        `;
+        
+        // Insert dropdown after profile icon
+        profileIcon.parentElement.style.position = 'relative';
+        profileIcon.parentElement.appendChild(dropdown);
+
+        // Toggle dropdown
+        profileIcon.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('active');
+            
+            // Update dropdown content
+            const user = auth.getCurrentUser();
+            if (user) {
+                document.getElementById('dropdown-name').textContent = user.name;
+                document.getElementById('dropdown-email').textContent = user.email;
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!profileIcon.contains(e.target) && !dropdown.contains(e.target)) {
+                dropdown.classList.remove('active');
+            }
         });
     }
 
-    // Checkout button
-    const checkoutBtn = document.getElementById('checkout-btn');
-    if (checkoutBtn) {
-        checkoutBtn.addEventListener('click', () => this.checkout());
+    getInitials() {
+        const user = auth.getCurrentUser();
+        if (user && user.name) {
+            return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        }
+        return 'U';
     }
-}
 
-getImageHTML(imageUrl, itemName, className = 'detail-img') {
-    if (imageUrl && imageUrl !== 'images/food/default.jpg') {
-        // Has a real image URL
-        return `
-            <img class="${className}" 
-                 src="${imageUrl}" 
-                 alt="${itemName}" 
-                 onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-            <div class="image-placeholder" style="display: none;">
-                🍽️
-                <span class="no-image-text">${itemName}</span>
-            </div>
-        `;
-    } else {
-        // No image - show placeholder
-        return `
-            <div class="image-placeholder">
-                🍽️
-                <span class="no-image-text">${itemName}</span>
-            </div>
-        `;
+    getImageHTML(imageUrl, itemName, className = 'detail-img') {
+        if (imageUrl && imageUrl !== 'images/food/default.jpg') {
+            return `
+                <img class="${className}" 
+                     src="${imageUrl}" 
+                     alt="${itemName}" 
+                     loading="lazy"
+                     onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="image-placeholder" style="display: none;">
+                    🍽️
+                    <span class="no-image-text">${itemName}</span>
+                </div>
+            `;
+        } else {
+            return `
+                <div class="image-placeholder">
+                    🍽️
+                    <span class="no-image-text">${itemName}</span>
+                </div>
+            `;
+        }
     }
-}
 
     async loadUserData() {
         try {
@@ -96,12 +157,10 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
             if (user) {
                 const userNameEl = document.getElementById('user-name');
                 if (userNameEl) {
-                    // FIX: Use the actual user's name from the user object
                     userNameEl.textContent = user.name;
                 }
             }
 
-            // Load wallet balance
             await this.updateWalletBalance();
         } catch (error) {
             console.error('Error loading user data:', error);
@@ -126,7 +185,6 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
             const menuData = await api.getMenu();
             this.menuItems = menuData;
             
-            // Group by outlets
             this.outlets = [...new Set(menuData.map(item => item.outlet_name))];
             
             this.renderOutlets();
@@ -141,36 +199,35 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
     }
 
     renderOutlets() {
-    const container = document.getElementById('outlets-container');
-    if (!container) return;
+        const container = document.getElementById('outlets-container');
+        if (!container) return;
 
-    const outletsHTML = this.outlets.map(outlet => {
-        const outletSlug = outlet.toLowerCase().replace(/\s+/g, '_');
-        return `
-            <div class="filter-card" onclick="app.filterByOutlet('${outlet}')">
+        const outletsHTML = this.outlets.map(outlet => {
+            const initial = outlet.charAt(0).toUpperCase();
+            return `
+                <div class="filter-card" onclick="app.filterByOutlet('${outlet}')">
+                    <div class="filter-icon">
+                        <div class="image-placeholder filter-img-placeholder">
+                            ${initial}
+                        </div>
+                    </div>
+                    <p>${outlet}</p>
+                </div>
+            `;
+        }).join('');
+
+        container.innerHTML = `
+            <div class="filter-card" onclick="app.filterByOutlet('All')">
                 <div class="filter-icon">
                     <div class="image-placeholder filter-img-placeholder">
-                        ${outlet.charAt(0)}
+                        All
                     </div>
                 </div>
-                <p>${outlet}</p>
+                <p>All</p>
             </div>
+            ${outletsHTML}
         `;
-    }).join('');
-
-    container.innerHTML = `
-        <div class="filter-card" onclick="app.filterByOutlet('All')">
-            <div class="filter-icon">
-                <div class="image-placeholder filter-img-placeholder">
-                    All
-                </div>
-            </div>
-            <p>All</p>
-        </div>
-        ${outletsHTML}
-    `;
-}
-
+    }
 
     renderPopularItems() {
         const container = document.getElementById('popular-items');
@@ -180,16 +237,16 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
         
         const popularHTML = popularItems.map(item => `
             <div class="highlight-card" onclick="app.addToCart(${item.id})">
-            ${this.getImageHTML(item.image_url, item.name, 'highlight-img')}
-            <div class="highlight-desc">
-                <h4>${item.name}</h4>
-                <p style="color: #a7a7a7;">${item.outlet_name}</p>
-                <p>₹${parseFloat(item.price).toFixed(2)}</p>
-                <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
-                    Add to Cart
-                </button>
+                ${this.getImageHTML(item.image_url, item.name, 'highlight-img')}
+                <div class="highlight-desc">
+                    <h4>${item.name}</h4>
+                    <p style="color: #a7a7a7;">${item.outlet_name}</p>
+                    <p>₹${parseFloat(item.price).toFixed(2)}</p>
+                    <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
+                        Add to Cart
+                    </button>
+                </div>
             </div>
-        </div>
         `).join('');
         
         container.innerHTML = popularHTML;
@@ -206,38 +263,102 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
         
         const menuHTML = itemsToShow.map(item => `
             <div class="detail-card" data-category="${item.outlet_name}">
-            ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
-            <div class="detail-desc">
-                <div class="detail-name">
-                    <h4>${item.name}</h4>
-                    <p class="detail-sub">${item.outlet_name}</p>
-                    <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
-                    <button class="add-to-cart-btn" onclick="app.addToCart(${item.id})">
-                        Add To Cart
-                    </button>
+                ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
+                <div class="detail-desc">
+                    <div class="detail-name">
+                        <h4>${item.name}</h4>
+                        <p class="detail-sub">${item.outlet_name}</p>
+                        <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
+                        <button class="add-to-cart-btn" onclick="app.addToCart(${item.id})">
+                            Add To Cart
+                        </button>
+                    </div>
+                    <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
                 </div>
-                <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
             </div>
-        </div>
         `).join('');
+        
         container.innerHTML = menuHTML;
     }
 
     filterByOutlet(outlet) {
         this.renderAllMenuItems(outlet);
         
-        // Update title
         const titleEl = document.querySelector('.main-detail .main-title');
         if (titleEl) {
             titleEl.textContent = outlet === 'All' ? 'All Items' : `${outlet} Menu`;
         }
     }
 
+    setupSearch() {
+        const searchInput = document.getElementById('search-bar');
+        if (!searchInput) return;
+
+        searchInput.addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase().trim();
+            
+            // Show/hide sections based on search
+            const popularSection = document.querySelector('.main-highlight');
+            const outletsSection = document.querySelector('.main-filter');
+            const menuSection = document.querySelector('.main-detail');
+            
+            if (query) {
+                // Hide popular and outlets when searching
+                if (popularSection) popularSection.style.display = 'none';
+                if (outletsSection) outletsSection.style.display = 'none';
+                if (menuSection) menuSection.style.display = 'block';
+                
+                this.filterMenuItems(query);
+            } else {
+                // Show all sections when search is empty
+                if (popularSection) popularSection.style.display = 'block';
+                if (outletsSection) outletsSection.style.display = 'block';
+                if (menuSection) menuSection.style.display = 'block';
+                
+                this.renderAllMenuItems();
+            }
+        });
+    }
+
+    filterMenuItems(query) {
+        const menuContainer = document.getElementById('menu');
+        if (!menuContainer) return;
+
+        const filteredItems = this.menuItems.filter(item =>
+            item.name.toLowerCase().includes(query) ||
+            item.outlet_name.toLowerCase().includes(query) ||
+            (item.category && item.category.toLowerCase().includes(query))
+        );
+
+        if (filteredItems.length === 0) {
+            menuContainer.innerHTML = '<div class="no-results">No items found matching your search.</div>';
+            return;
+        }
+
+        const menuHTML = filteredItems.map(item => `
+            <div class="detail-card" data-category="${item.outlet_name}">
+                ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
+                <div class="detail-desc">
+                    <div class="detail-name">
+                        <h4>${item.name}</h4>
+                        <p class="detail-sub">${item.outlet_name}</p>
+                        <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
+                        <button class="add-to-cart-btn" onclick="app.addToCart(${item.id})">
+                            Add To Cart
+                        </button>
+                    </div>
+                    <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
+                </div>
+            </div>
+        `).join('');
+
+        menuContainer.innerHTML = menuHTML;
+    }
+
     addToCart(menuItemId) {
         const item = this.menuItems.find(item => item.id === menuItemId);
         if (!item) return;
 
-        // Check if item already in cart
         const existingItem = this.cart.find(cartItem => cartItem.menu_item_id === menuItemId);
         
         if (existingItem) {
@@ -281,7 +402,6 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
 
         if (!cartItemsBody || !cartCountEl || !cartTotalEl) return;
 
-        // Clear existing items
         cartItemsBody.innerHTML = '';
 
         let totalCount = 0;
@@ -328,18 +448,14 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
 
             const response = await api.createOrder(orderData);
             
-            // Clear cart
             this.cart = [];
             this.updateCartDisplay();
             this.closeCart();
 
-            // Update wallet balance
             await this.updateWalletBalance();
 
-            // Show success message
             this.showSuccess(`Order placed successfully! Token: ${response.token}`);
 
-            // Redirect to bills page after a short delay
             setTimeout(() => {
                 window.location.href = 'bills.html';
             }, 2000);
@@ -352,54 +468,7 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
         }
     }
 
-    setupSearch() {
-        const searchInput = document.getElementById('search-bar');
-        if (!searchInput) return;
-
-        searchInput.addEventListener('input', (e) => {
-            const query = e.target.value.toLowerCase();
-            this.filterMenuItems(query);
-        });
-    }
-
-    filterMenuItems(query) {
-        const menuContainer = document.getElementById('menu');
-        if (!menuContainer) return;
-
-        const filteredItems = this.menuItems.filter(item =>
-            item.name.toLowerCase().includes(query) ||
-            item.outlet_name.toLowerCase().includes(query) ||
-            (item.category && item.category.toLowerCase().includes(query))
-        );
-
-        if (filteredItems.length === 0) {
-            menuContainer.innerHTML = '<div class="no-results">No items found matching your search.</div>';
-            return;
-        }
-
-        const menuHTML = filteredItems.map(item => `
-            <div class="detail-card" data-category="${item.outlet_name}">
-                <img class="detail-img" src="${item.image_url || 'images/food/default.jpg'}" 
-                     alt="${item.name}" onerror="this.src='images/food/default.jpg'">
-                <div class="detail-desc">
-                    <div class="detail-name">
-                        <h4>${item.name}</h4>
-                        <p class="detail-sub">${item.outlet_name}</p>
-                        <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
-                        <button class="add-to-cart-btn" onclick="app.addToCart(${item.id})">
-                            Add To Cart
-                        </button>
-                    </div>
-                    <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
-                </div>
-            </div>
-        `).join('');
-
-        menuContainer.innerHTML = menuHTML;
-    }
-
     setupScrolling() {
-        // Setup horizontal scrolling for recommendations
         const backBtn = document.querySelector('.back');
         const nextBtn = document.querySelector('.next');
         const highlightWrapper = document.querySelector('.highlight-wrapper');
@@ -414,7 +483,6 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
             });
         }
 
-        // Setup horizontal scrolling for outlets
         const backMenusBtn = document.querySelector('.back-menus');
         const nextMenusBtn = document.querySelector('.next-menus');
         const filterWrapper = document.querySelector('.filter-wrapper');
@@ -430,7 +498,6 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
         }
     }
 
-    // Utility functions
     toggleCartPopup() {
         const cartPopup = document.getElementById('cart-popup');
         if (cartPopup) {
@@ -453,17 +520,14 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
     }
 
     showError(message) {
-        // You can implement a proper notification system
         alert('Error: ' + message);
     }
 
     showSuccess(message) {
-        // You can implement a proper notification system
         alert('Success: ' + message);
     }
 
     showNotification(message) {
-        // Simple notification - you can enhance this
         const notification = document.createElement('div');
         notification.className = 'notification success';
         notification.textContent = message;
@@ -487,7 +551,6 @@ getImageHTML(imageUrl, itemName, className = 'detail-img') {
     }
 }
 
-// Global functions for onclick handlers
 function toggleCartPopup() {
     app.toggleCartPopup();
 }
@@ -496,8 +559,6 @@ function closeCart() {
     app.closeCart();
 }
 
-// Initialize app when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new CanTechApp();
 });
-

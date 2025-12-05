@@ -1697,3 +1697,266 @@ img[src="images/outlets/default.jpg"]::after {
     font-size: 2rem;
     color: #4caf50;
 }
+
+/* Add these styles to your css/style.css file */
+
+/* Profile Dropdown Styles */
+.profile-dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    min-width: 250px;
+    margin-top: 10px;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+    z-index: 1000;
+}
+
+.profile-dropdown.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.profile-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -6px;
+    right: 20px;
+    width: 12px;
+    height: 12px;
+    background: white;
+    transform: rotate(45deg);
+}
+
+.profile-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.5rem;
+    border-bottom: 1px solid #eee;
+}
+
+.profile-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primaryColor), var(--secondaryColor));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.2rem;
+}
+
+.profile-details {
+    flex: 1;
+}
+
+.profile-details strong {
+    display: block;
+    color: var(--blackColor);
+    margin-bottom: 0.3rem;
+}
+
+.profile-details small {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.profile-menu {
+    padding: 0.5rem 0;
+}
+
+.profile-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1.5rem;
+    color: var(--blackColor);
+    text-decoration: none;
+    transition: background 0.2s ease;
+}
+
+.profile-menu-item:hover {
+    background: var(--greyColor);
+}
+
+.profile-menu-item ion-icon {
+    font-size: 1.2rem;
+    color: var(--primaryColor);
+}
+
+/* Fix image blinking/loading issues */
+img[loading="lazy"] {
+    background: #f0f0f0;
+    min-height: 150px;
+}
+
+.detail-img, .highlight-img {
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.detail-img[src], .highlight-img[src] {
+    opacity: 1;
+}
+
+/* Vendor menu item images */
+.vendor-menu-item-img {
+    width: 80px;
+    height: 80px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-right: 1rem;
+    flex-shrink: 0;
+    background: #f0f0f0;
+}
+
+.vendor-menu-item-img-placeholder {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #e0e0e0, #f5f5f5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    margin-right: 1rem;
+    flex-shrink: 0;
+}
+
+/* Image placeholder improvements */
+.image-placeholder {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    font-size: 3rem;
+    color: #999;
+    text-align: center;
+    padding: 1rem;
+}
+
+.filter-img-placeholder {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--primaryColor), var(--secondaryColor));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: bold;
+    font-size: 1.5rem;
+}
+
+.no-image-text {
+    font-size: 0.8rem;
+    margin-top: 0.5rem;
+    color: #666;
+    font-weight: normal;
+}
+
+/* Ensure images don't blink on load */
+.detail-card img,
+.highlight-card img,
+.menu-card img {
+    display: block;
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 10px;
+    background: #f0f0f0;
+}
+
+.highlight-card img {
+    height: 150px;
+}
+
+/* Smooth image loading */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+img {
+    animation: fadeIn 0.3s ease-in;
+}
+
+/* Mobile responsive fixes */
+@media screen and (max-width: 768px) {
+    .profile-dropdown {
+        min-width: 200px;
+        right: -10px;
+    }
+
+    .profile-info {
+        padding: 1rem;
+    }
+
+    .profile-avatar {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+}
+
+/* Fix for search result visibility */
+.no-results {
+    text-align: center;
+    padding: 3rem;
+    color: #666;
+    font-size: 1.1rem;
+    background: white;
+    border-radius: 10px;
+    margin: 1rem 0;
+}
+
+/* Sidebar overlay for mobile */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    display: block;
+}
+
+/* Prevent body scroll when menu is open */
+body.menu-open {
+    overflow: hidden;
+}
+
+/* Better mobile sidebar */
+@media screen and (max-width: 768px) {
+    .sidebar {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.active {
+        transform: translateX(0);
+    }
+}
