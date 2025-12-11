@@ -14,6 +14,7 @@ class CanTechApp {
         this.setupSearch();
         this.setupScrolling();
         this.setupProfileDropdown();
+        this.setupStickyNavbar();
     }
 
     setupEventListeners() {
@@ -359,7 +360,7 @@ class CanTechApp {
     addToCart(menuItemId) {
         const item = this.menuItems.find(item => item.id === menuItemId);
         if (!item) return;
-
+        
         const existingItem = this.cart.find(cartItem => cartItem.menu_item_id === menuItemId);
         
         if (existingItem) {
@@ -373,9 +374,18 @@ class CanTechApp {
                 qty: 1
             });
         }
-
+        
         this.updateCartDisplay();
         this.showNotification(`${item.name} added to cart!`);
+        
+        // Add pulse animation to floating badge
+        const floatingBadge = document.getElementById('floating-cart-badge');
+        if (floatingBadge) {
+            floatingBadge.classList.add('pulse');
+            setTimeout(() => {
+                floatingBadge.classList.remove('pulse');
+            }, 600);
+        }
     }
 
     removeFromCart(menuItemId) {
@@ -397,40 +407,55 @@ class CanTechApp {
     }
 
     updateCartDisplay() {
-        const cartItemsBody = document.querySelector('#cart-items tbody');
-        const cartCountEl = document.getElementById('cart-count');
-        const cartTotalEl = document.getElementById('cart-total');
+    const cartItemsBody = document.querySelector('#cart-items tbody');
+    const cartCountEl = document.getElementById('cart-count');
+    const cartTotalEl = document.getElementById('cart-total');
+    
+    // Floating badge elements
+    const floatingBadge = document.getElementById('floating-cart-badge');
+    const floatingCountEl = document.getElementById('floating-cart-count');
+    const floatingTotalEl = document.getElementById('floating-cart-total');
 
-        if (!cartItemsBody || !cartCountEl || !cartTotalEl) return;
+    if (!cartItemsBody || !cartCountEl || !cartTotalEl) return;
 
-        cartItemsBody.innerHTML = '';
+    cartItemsBody.innerHTML = '';
 
-        let totalCount = 0;
-        let totalAmount = 0;
+    let totalCount = 0;
+    let totalAmount = 0;
 
-        this.cart.forEach(item => {
-            const itemTotal = item.price * item.qty;
-            totalCount += item.qty;
-            totalAmount += itemTotal;
+    this.cart.forEach(item => {
+        const itemTotal = item.price * item.qty;
+        totalCount += item.qty;
+        totalAmount += itemTotal;
 
-            const row = cartItemsBody.insertRow();
-            row.innerHTML = `
-                <td>${item.name}</td>
-                <td>${item.outlet_name}</td>
-                <td class="item-count">${item.qty}</td>
-                <td class="item-price">₹${item.price.toFixed(2)}</td>
-                <td class="item-total">₹${itemTotal.toFixed(2)}</td>
-                <td class="actions-cell">
-                    <button class="decrease-btn" onclick="app.updateCartQuantity(${item.menu_item_id}, -1)">➖</button>
-                    <button class="increase-btn" onclick="app.updateCartQuantity(${item.menu_item_id}, 1)">➕</button>
-                </td>
+        const row = cartItemsBody.insertRow();
+        row.innerHTML = `
+            <td>${item.name}</td>
+            <td>${item.outlet_name}</td>
+            <td class="item-count">${item.qty}</td>
+            <td class="item-price">₹${item.price.toFixed(2)}</td>
+            <td class="item-total">₹${itemTotal.toFixed(2)}</td>
+            <td class="actions-cell">
+                <button class="decrease-btn" onclick="app.updateCartQuantity(${item.menu_item_id}, -1)">➖</button>
+                <button class="increase-btn" onclick="app.updateCartQuantity(${item.menu_item_id}, 1)">➕</button>
+            </td>
             `;
         });
-
         cartCountEl.textContent = totalCount;
         cartTotalEl.textContent = totalAmount.toFixed(2);
+        if (floatingBadge && floatingCountEl && floatingTotalEl) {
+            floatingCountEl.textContent = totalCount;
+            floatingTotalEl.textContent = totalAmount.toFixed(2);
+            
+            // Show/hide floating badge based on cart items
+            if (totalCount > 0) {
+                floatingBadge.classList.add('active');
+            } else {
+                floatingBadge.classList.remove('active');
+            }
+        }
     }
-
+    
     async checkout() {
         if (this.cart.length === 0) {
             this.showError('Your cart is empty!');
@@ -467,6 +492,25 @@ class CanTechApp {
         } finally {
             this.showLoading(false);
         }
+    }
+
+    setupStickyNavbar() {
+        const navbar = document.querySelector('.main-navbar');
+        if (!navbar) return;
+        
+        let lastScroll = 0;
+        
+        window.addEventListener('scroll', () => {
+            const currentScroll = window.pageYOffset;
+            
+            if (currentScroll > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+            
+            lastScroll = currentScroll;
+        });
     }
 
     setupScrolling() {
