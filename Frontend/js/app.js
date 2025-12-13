@@ -4,11 +4,13 @@ class CanTechApp {
         this.cart = [];
         this.menuItems = [];
         this.outlets = [];
+        this.bookmarks = [];
         this.init();
     }
 
     async init() {
         this.setupEventListeners();
+        this.loadBookmarks();
         await this.loadUserData();
         await this.loadMenuData();
         this.setupSearch();
@@ -199,6 +201,116 @@ class CanTechApp {
         }
     }
 
+    loadBookmarks() {
+        const savedBookmarks = localStorage.getItem('bookmarks');
+        if (savedBookmarks) {
+            this.bookmarks = JSON.parse(savedBookmarks);
+        }
+        this.updateBookmarkCount();
+    }
+    
+    saveBookmarks() {
+        localStorage.setItem('bookmarks', JSON.stringify(this.bookmarks));
+    }
+    
+    toggleBookmark(menuItemId, event) {
+        if (event) {
+            event.stopPropagation();
+        }
+        
+        const itemIndex = this.bookmarks.findIndex(b => b === menuItemId);
+        
+        if (itemIndex > -1) {
+            // Remove from bookmarks
+            this.bookmarks.splice(itemIndex, 1);
+            this.showNotification('Removed from bookmarks');
+        } else {
+            // Add to bookmarks
+            this.bookmarks.push(menuItemId);
+            this.showNotification('Added to bookmarks!');
+        }
+        
+        this.saveBookmarks();
+        this.updateBookmarkCount();
+        this.updateBookmarkIcons();
+    }
+    
+    updateBookmarkCount() {
+        const bookmarkCountEl = document.getElementById('bookmark-count');
+        if (bookmarkCountEl) {
+            bookmarkCountEl.textContent = this.bookmarks.length;
+        }
+    }
+    
+    updateBookmarkIcons() {
+        // Update all bookmark icons on cards
+        document.querySelectorAll('.detail-favorites').forEach(icon => {
+            const itemId = parseInt(icon.dataset.itemId);
+            if (this.bookmarks.includes(itemId)) {
+                icon.name = 'bookmark';
+                icon.style.color = '#ffc107';
+            } else {
+                icon.name = 'bookmark-outline';
+                icon.style.color = '#e74c3c';
+            }
+        });
+    }
+    
+    displayBookmarks() {
+        const bookmarkList = document.getElementById('bookmark-list');
+        if (!bookmarkList) return;
+        
+        if (this.bookmarks.length === 0) {
+            bookmarkList.innerHTML = `
+            <div class="empty-bookmarks">
+                <ion-icon name="bookmark-outline"></ion-icon>
+                <h3>No Bookmarks Yet</h3>
+                <p>Save your favorite items here!</p>
+            </div>
+            `;
+            return;
+        }
+        
+        const bookmarkedItems = this.menuItems.filter(item => 
+            this.bookmarks.includes(item.id)
+        );
+        
+        bookmarkList.innerHTML = bookmarkedItems.map(item => `
+            <div class="bookmark-item">
+            ${this.getImageHTML(item.image_url, item.name, 'bookmark-img')}
+            <div class="bookmark-info">
+                <div class="bookmark-name">${item.name}</div>
+                <div class="bookmark-outlet">${item.outlet_name}</div>
+                <div class="bookmark-price">₹${parseFloat(item.price).toFixed(2)}</div>
+            </div>
+            <div class="bookmark-actions">
+                <button class="bookmark-add-cart" onclick="app.addToCart(${item.id}); return false;">
+                    Add to Cart
+                </button>
+                <button class="bookmark-remove" onclick="app.toggleBookmark(${item.id}); app.displayBookmarks(); return false;">
+                    Remove
+                </button>
+            </div>
+        </div>
+        `).join('');
+    }
+    toggleBookmarkPopup() {
+        const bookmarkPopup = document.getElementById('bookmark-popup');
+        if (bookmarkPopup) {
+            bookmarkPopup.classList.toggle('active');
+            if (bookmarkPopup.classList.contains('active')) {
+                this.displayBookmarks();
+            }
+        }
+    }
+    
+    closeBookmarkPopup() {
+        const bookmarkPopup = document.getElementById('bookmark-popup');
+        if (bookmarkPopup) {
+            bookmarkPopup.classList.remove('active');
+        }
+    }
+
     renderOutlets() {
         const container = document.getElementById('outlets-container');
         if (!container) return;
@@ -254,30 +366,40 @@ class CanTechApp {
     }
 
     renderAllMenuItems(filterOutlet = 'All') {
-    const container = document.getElementById('menu');
-    if (!container) return;
-    
-    let itemsToShow = this.menuItems;
-    if (filterOutlet !== 'All') {
-        itemsToShow = this.menuItems.filter(item => item.outlet_name === filterOutlet);
-    }
-    
-    const menuHTML = itemsToShow.map(item => `
-        <div class="detail-card" data-category="${item.outlet_name}">
+        const container = document.getElementById('menu');
+        if (!container) return;
+        
+        let itemsToShow = this.menuItems;
+        if (filterOutlet !== 'All') {
+            itemsToShow = this.menuItems.filter(item => item.outlet_name === filterOutlet);
+        }
+        
+        const menuHTML = itemsToShow.map(item => {
+            const isBookmarked = this.bookmarks.includes(item.id);
+            return `
+            <div class="detail-card" data-category="${item.outlet_name}">
             ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
             <div class="detail-desc">
-                <div class="detail-name">
-                    <h4>${item.name}</h4>
-                    <p class="detail-sub">${item.outlet_name}</p>
-                    <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
-                    <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
-                        Add To Cart
-                    </button>
-                </div>
-                <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
+            <div class="detail-name">
+            <h4>${item.name}</h4>
+            <p class="detail-sub">${item.outlet_name}</p>
+            <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
+            <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
+            Add To Cart
+            </button>
             </div>
-        </div>
-        `).join('');
+            <ion-icon 
+            class="detail-favorites" 
+            name="${isBookmarked ? 'bookmark' : 'bookmark-outline'}"
+            data-item-id="${item.id}"
+            style="color: ${isBookmarked ? '#ffc107' : '#e74c3c'}"
+            onclick="event.stopPropagation(); app.toggleBookmark(${item.id}, event)">
+            </ion-icon>
+            </div>
+            </div>
+            `;
+        }).join('');
+        
         container.innerHTML = menuHTML;
     }
 
@@ -602,6 +724,15 @@ function toggleCartPopup() {
 
 function closeCart() {
     app.closeCart();
+}
+
+// Global functions for onclick handlers:
+function toggleBookmarkPopup() {
+    app.toggleBookmarkPopup();
+}
+
+function closeBookmarkPopup() {
+    app.closeBookmarkPopup();
 }
 
 document.addEventListener('DOMContentLoaded', () => {
