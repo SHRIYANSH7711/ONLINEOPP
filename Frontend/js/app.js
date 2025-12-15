@@ -297,8 +297,14 @@ class CanTechApp {
     toggleBookmarkPopup() {
         const bookmarkPopup = document.getElementById('bookmark-popup');
         if (bookmarkPopup) {
-            bookmarkPopup.classList.toggle('active');
-            if (bookmarkPopup.classList.contains('active')) {
+            const isActive = bookmarkPopup.classList.contains('active');
+            
+            if (isActive) {
+                // Close it
+                bookmarkPopup.classList.remove('active');
+            } else {
+                // Open it and load bookmarks
+                bookmarkPopup.classList.add('active');
                 this.displayBookmarks();
             }
         }

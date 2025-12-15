@@ -1556,9 +1556,10 @@ body.dark-mode .bookmark-icon {
 .bookmark-popup h4 {
     background: var(--secondaryColor);
     color: var(--blackColor);
-    padding: 1rem 1.5rem;
+    padding: 1rem 3rem 1rem 1.5rem; /* Add right padding for close button */
     margin: 0;
     font-size: 1.2rem;
+    position: relative;
 }
 
 .bookmark-list {
@@ -1644,9 +1645,21 @@ body.dark-mode .bookmark-icon {
     top: 15px;
     right: 15px;
     color: var(--blackColor);
-    font-size: 24px;
+    font-size: 28px;
     cursor: pointer;
     text-decoration: none;
+    z-index: 10;
+    transition: all 0.2s ease;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.bookmark-close:hover {
+    transform: scale(1.1);
+    color: var(--errorColor);
 }
 
 .empty-bookmarks {
@@ -1683,7 +1696,15 @@ body.dark-mode .bookmark-name {
 }
 
 body.dark-mode .bookmark-close {
-    color: #ffc107;
+    color: var(--whiteColor);
+}
+
+body.dark-mode .bookmark-close:hover {
+    color: var(--errorColor);
+}
+
+.bookmark-close ion-icon {
+    pointer-events: none;
 }
 
 @media screen and (max-width: 768px) {
