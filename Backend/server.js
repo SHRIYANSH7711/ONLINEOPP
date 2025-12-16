@@ -484,10 +484,19 @@ app.delete('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res)
 
 app.post('/api/orders', verifyToken, async (req, res) => {
   const userId = req.user.id;
-  const { items } = req.body;
+  const { items, payment_method, upi_id, transaction_id, vendor_name } = req.body;
 
+  // Validation
   if (!Array.isArray(items) || items.length === 0) {
     return res.status(400).json({ error: 'No items provided' });
+  }
+
+  if (!payment_method || payment_method !== 'UPI') {
+    return res.status(400).json({ error: 'Invalid payment method' });
+  }
+
+  if (!upi_id || !transaction_id) {
+    return res.status(400).json({ error: 'Payment details required' });
   }
 
   // Validate items structure
@@ -501,24 +510,39 @@ app.post('/api/orders', verifyToken, async (req, res) => {
   try {
     await client.query('BEGIN');
 
+    // Get user balance (not needed for UPI, but keep for logging)
     const userResult = await client.query(
       'SELECT wallet_balance FROM users WHERE id = $1', 
       [userId]
     );
     const userBalance = parseFloat(userResult.rows[0].wallet_balance);
 
+    // Get menu items and verify they're from the same vendor
     const menuIds = items.map(item => item.menu_item_id);
     const menuQuery = `
-      SELECT id, name, price, vendor_id 
-      FROM menu_items 
-      WHERE id = ANY($1) AND is_available = true
+      SELECT m.id, m.name, m.price, m.vendor_id, v.outlet_name
+      FROM menu_items m
+      JOIN vendors v ON v.id = m.vendor_id
+      WHERE m.id = ANY($1) AND m.is_available = true
     `;
     const menuResult = await client.query(menuQuery, [menuIds]);
     
     if (menuResult.rows.length !== menuIds.length) {
-      throw new Error('Some items are not available');
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Some items are not available' });
     }
 
+    // Verify all items are from the same vendor
+    const vendorIds = [...new Set(menuResult.rows.map(m => m.vendor_id))];
+    if (vendorIds.length > 1) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ error: 'Items must be from the same vendor' });
+    }
+
+    const vendorId = vendorIds[0];
+    const actualVendorName = menuResult.rows[0].outlet_name;
+
+    // Calculate total
     let totalAmount = 0;
     const orderItems = [];
 
@@ -539,29 +563,49 @@ app.post('/api/orders', verifyToken, async (req, res) => {
       });
     }
 
-    if (userBalance < totalAmount) {
-      throw new Error('Insufficient wallet balance');
-    }
-
-    // Generate token
+    // Generate token for this vendor
     const today = new Date();
     const dateKey = today.toISOString().split('T')[0];
     
+    // Get counter for this vendor and date
     const counterResult = await client.query(`
-      INSERT INTO order_counters (order_date, counter) VALUES ($1, 1)
-      ON CONFLICT (order_date) DO UPDATE SET counter = order_counters.counter + 1
+      INSERT INTO vendor_order_counters (vendor_id, order_date, counter) 
+      VALUES ($1, $2, 1)
+      ON CONFLICT (vendor_id, order_date) 
+      DO UPDATE SET counter = vendor_order_counters.counter + 1
       RETURNING counter
-    `, [dateKey]);
+    `, [vendorId, dateKey]);
     
     const orderOfDay = counterResult.rows[0].counter;
     const [year, month, day] = dateKey.split('-');
-    const token = `${day}_${month}_${year}_${String(orderOfDay).padStart(2, '0')}`;
+    const token = `${day}_${month}_${year}_${String(orderOfDay).padStart(3, '0')}`;
 
-    // Create order
+    // Create order with payment details
     const orderResult = await client.query(`
-      INSERT INTO orders (user_id, token, total_amount, order_date, order_of_day)
-      VALUES ($1, $2, $3, $4, $5) RETURNING id
-    `, [userId, token, totalAmount, dateKey, orderOfDay]);
+      INSERT INTO orders (
+        user_id, 
+        token, 
+        total_amount, 
+        order_date, 
+        order_of_day,
+        payment_method,
+        upi_id,
+        transaction_id,
+        payment_status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+      RETURNING id
+    `, [
+      userId, 
+      token, 
+      totalAmount, 
+      dateKey, 
+      orderOfDay,
+      payment_method,
+      upi_id,
+      transaction_id,
+      'completed'
+    ]);
     
     const orderId = orderResult.rows[0].id;
 
@@ -573,16 +617,38 @@ app.post('/api/orders', verifyToken, async (req, res) => {
       `, [orderId, item.menu_item_id, item.qty, item.price, item.vendor_id]);
     }
 
-    // Update wallet and create transaction
-    await client.query(
-      'UPDATE users SET wallet_balance = wallet_balance - $1 WHERE id = $2', 
-      [totalAmount, userId]
-    );
-    
+    // Create payment transaction record
     await client.query(`
-      INSERT INTO transactions (user_id, amount, type, description, reference_id)
-      VALUES ($1, $2, 'debit', 'Order payment', $3)
-    `, [userId, totalAmount, token]);
+      INSERT INTO transactions (
+        user_id, 
+        amount, 
+        type, 
+        description, 
+        reference_id,
+        payment_method,
+        transaction_id
+      )
+      VALUES ($1, $2, 'debit', $3, $4, $5, $6)
+    `, [
+      userId, 
+      totalAmount, 
+      `Order payment via ${payment_method} - ${actualVendorName}`, 
+      token,
+      payment_method,
+      transaction_id
+    ]);
+
+    // Create notification for customer
+    await client.query(`
+      INSERT INTO notifications (user_id, title, message, type, reference_id, is_read)
+      VALUES ($1, $2, $3, $4, $5, false)
+    `, [
+      userId, 
+      'Order Placed Successfully', 
+      `Your order from ${actualVendorName} has been placed. Token: ${token}`,
+      'order',
+      token
+    ]);
 
     await client.query('COMMIT');
 
@@ -590,7 +656,9 @@ app.post('/api/orders', verifyToken, async (req, res) => {
       success: true,
       order_id: orderId,
       token: token,
-      total: totalAmount
+      total: totalAmount,
+      vendor_name: actualVendorName,
+      transaction_id: transaction_id
     });
 
   } catch (err) {
