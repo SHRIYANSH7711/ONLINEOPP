@@ -152,6 +152,134 @@
     </a>
 </div>
 
+<!-- ============================================
+     PAYMENT MODALS HTML
+     ============================================ -->
+
+<!-- 1. UPI Payment Modal -->
+<div id="upi-payment-modal" class="payment-modal">
+    <div class="payment-modal-content">
+        <div class="payment-header">
+            <h3>Pay with UPI</h3>
+            <span class="payment-close" onclick="cancelPayment()">×</span>
+        </div>
+        
+        <div class="payment-body">
+            <!-- Vendor Info -->
+            <div class="payment-vendor-info">
+                <h4 id="payment-vendor-name">Outlet Name</h4>
+                <p class="payment-progress" id="payment-progress">Processing 1 of 3 outlets</p>
+            </div>
+            
+            <!-- Items List -->
+            <div class="payment-items">
+                <h5>Order Items:</h5>
+                <div id="payment-items-list" class="payment-items-list">
+                    <!-- Items will be loaded here -->
+                </div>
+            </div>
+            
+            <!-- Total Amount -->
+            <div class="payment-total">
+                <span>Total Amount:</span>
+                <strong>₹<span id="payment-vendor-total">0.00</span></strong>
+            </div>
+            
+            <!-- Loading State -->
+            <div id="payment-loading" class="payment-loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Processing payment...</p>
+                <p class="payment-loading-hint">Please confirm payment in your UPI app</p>
+            </div>
+            
+            <!-- Payment Form -->
+            <div id="payment-form-content">
+                <div class="payment-form">
+                    <label for="upi-id-input">Enter your UPI ID:</label>
+                    <input 
+                        type="text" 
+                        id="upi-id-input" 
+                        placeholder="example@upi" 
+                        pattern="[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+"
+                        required
+                    >
+                    <small>Format: yourname@bankname or mobile@upi</small>
+                </div>
+                
+                <div class="payment-actions">
+                    <button class="btn-secondary" onclick="cancelPayment()">Cancel</button>
+                    <button class="btn-primary" onclick="processPayment()">Pay Now</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 2. UPI Confirmation Modal (Simulates UPI App) -->
+<div id="upi-confirm-modal" class="payment-modal">
+    <div class="payment-modal-content upi-confirm-content">
+        <div class="upi-confirm-header">
+            <ion-icon name="shield-checkmark-outline"></ion-icon>
+            <h3>Confirm Payment</h3>
+        </div>
+        
+        <div class="upi-confirm-body">
+            <div class="upi-confirm-item">
+                <span>UPI ID:</span>
+                <strong id="confirm-upi-id">user@upi</strong>
+            </div>
+            <div class="upi-confirm-item">
+                <span>Paying to:</span>
+                <strong id="confirm-vendor">Outlet Name</strong>
+            </div>
+            <div class="upi-confirm-item">
+                <span>Amount:</span>
+                <strong class="upi-amount" id="confirm-amount">₹0.00</strong>
+            </div>
+            
+            <p class="upi-confirm-note">
+                <ion-icon name="information-circle-outline"></ion-icon>
+                This simulates UPI app confirmation. In production, this would redirect to your actual UPI app.
+            </p>
+            
+            <div class="upi-confirm-actions">
+                <button class="btn-cancel" id="upi-cancel-btn">Cancel Payment</button>
+                <button class="btn-confirm" id="upi-confirm-btn">Confirm & Pay</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 3. Payment Failed Dialog -->
+<div id="payment-failed-dialog" class="payment-modal">
+    <div class="payment-modal-content payment-failed-content">
+        <div class="payment-failed-header">
+            <ion-icon name="close-circle-outline"></ion-icon>
+            <h3>Payment Failed</h3>
+        </div>
+        
+        <div class="payment-failed-body">
+            <p><strong>Outlet:</strong> <span id="failed-vendor-name"></span></p>
+            <p><strong>Reason:</strong> <span id="failed-reason"></span></p>
+            
+            <p class="payment-failed-note">What would you like to do?</p>
+            
+            <div class="payment-failed-actions">
+                <button class="btn-retry" id="payment-retry-btn">
+                    <ion-icon name="refresh-outline"></ion-icon>
+                    Retry Payment
+                </button>
+                <button class="btn-skip" id="payment-skip-btn">
+                    Skip & Continue
+                </button>
+                <button class="btn-cancel" id="payment-cancel-all-btn">
+                    Cancel All
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <script src="https://code.jquery.com/jquery-2.2.4.min.js"></script>

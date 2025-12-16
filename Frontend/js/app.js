@@ -5,6 +5,7 @@ class CanTechApp {
         this.menuItems = [];
         this.outlets = [];
         this.bookmarks = [];
+        this.paymentProcessor = new PaymentProcessor(this);
         this.init();
     }
 
@@ -589,37 +590,9 @@ class CanTechApp {
             this.showError('Your cart is empty!');
             return;
         }
-
-        try {
-            this.showLoading(true);
-
-            const orderData = {
-                items: this.cart.map(item => ({
-                    menu_item_id: item.menu_item_id,
-                    qty: item.qty
-                }))
-            };
-
-            const response = await api.createOrder(orderData);
-            
-            this.cart = [];
-            this.updateCartDisplay();
-            this.closeCart();
-
-            await this.updateWalletBalance();
-
-            this.showSuccess(`Order placed successfully! Token: ${response.token}`);
-
-            setTimeout(() => {
-                window.location.href = 'bills.html';
-            }, 2000);
-
-        } catch (error) {
-            console.error('Checkout failed:', error);
-            this.showError(error.message || 'Checkout failed');
-        } finally {
-            this.showLoading(false);
-        }
+        
+        // Start multi-vendor payment process
+        this.paymentProcessor.startCheckout();
     }
 
     setupStickyNavbar() {
@@ -721,6 +694,437 @@ class CanTechApp {
         setTimeout(() => {
             notification.remove();
         }, 3000);
+    }
+}
+
+
+// ============================================
+// MULTI-VENDOR PAYMENT SYSTEM WITH UPI
+// ============================================
+
+class PaymentProcessor {
+    constructor(app) {
+        this.app = app;
+        this.currentVendorIndex = 0;
+        this.vendorOrders = [];
+        this.completedPayments = [];
+        this.failedPayments = [];
+    }
+
+    // Segregate cart items by vendor
+    segregateByVendor(cartItems) {
+        const vendorMap = new Map();
+        
+        cartItems.forEach(item => {
+            if (!vendorMap.has(item.outlet_name)) {
+                vendorMap.set(item.outlet_name, {
+                    vendor_name: item.outlet_name,
+                    items: [],
+                    total: 0
+                });
+            }
+            
+            const vendor = vendorMap.get(item.outlet_name);
+            vendor.items.push(item);
+            vendor.total += item.price * item.qty;
+        });
+        
+        return Array.from(vendorMap.values());
+    }
+
+    // Start the multi-vendor checkout process
+    async startCheckout() {
+        if (this.app.cart.length === 0) {
+            this.app.showError('Your cart is empty!');
+            return;
+        }
+
+        // Segregate items by vendor
+        this.vendorOrders = this.segregateByVendor(this.app.cart);
+        this.currentVendorIndex = 0;
+        this.completedPayments = [];
+        this.failedPayments = [];
+
+        console.log('Segregated Orders:', this.vendorOrders);
+
+        // Show payment modal for first vendor
+        this.processNextVendor();
+    }
+
+    // Process payment for next vendor in queue
+    processNextVendor() {
+        if (this.currentVendorIndex >= this.vendorOrders.length) {
+            // All vendors processed
+            this.completeCheckout();
+            return;
+        }
+
+        const currentVendor = this.vendorOrders[this.currentVendorIndex];
+        this.showPaymentModal(currentVendor);
+    }
+
+    // Show UPI payment modal for specific vendor
+    showPaymentModal(vendorOrder) {
+        const modal = document.getElementById('upi-payment-modal');
+        if (!modal) {
+            console.error('Payment modal not found!');
+            return;
+        }
+
+        // Update modal content
+        document.getElementById('payment-vendor-name').textContent = vendorOrder.vendor_name;
+        document.getElementById('payment-vendor-total').textContent = vendorOrder.total.toFixed(2);
+        
+        // Show items list
+        const itemsList = document.getElementById('payment-items-list');
+        itemsList.innerHTML = vendorOrder.items.map(item => `
+            <div class="payment-item-row">
+                <span>${item.name} x ${item.qty}</span>
+                <span>₹${(item.price * item.qty).toFixed(2)}</span>
+            </div>
+        `).join('');
+
+        // Show vendor progress
+        document.getElementById('payment-progress').textContent = 
+            `Processing ${this.currentVendorIndex + 1} of ${this.vendorOrders.length} outlets`;
+
+        // Clear UPI ID input
+        document.getElementById('upi-id-input').value = '';
+        
+        // Show modal
+        modal.classList.add('active');
+    }
+
+    // Hide payment modal
+    hidePaymentModal() {
+        const modal = document.getElementById('upi-payment-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    }
+
+    // Process UPI payment
+    async processUPIPayment(upiId) {
+        const currentVendor = this.vendorOrders[this.currentVendorIndex];
+        
+        if (!this.validateUPI(upiId)) {
+            this.app.showError('Please enter a valid UPI ID');
+            return;
+        }
+
+        try {
+            // Show loading state
+            this.showPaymentLoading(true);
+
+            // Simulate UPI payment request
+            // In production, this would integrate with actual payment gateway
+            const paymentResult = await this.initiateUPIPayment(upiId, currentVendor);
+
+            if (paymentResult.success) {
+                // Payment successful - create order and generate bill
+                await this.handleSuccessfulPayment(currentVendor, paymentResult);
+            } else {
+                // Payment failed or cancelled
+                this.handleFailedPayment(currentVendor, paymentResult.reason);
+            }
+
+        } catch (error) {
+            console.error('Payment error:', error);
+            this.app.showError('Payment processing failed. Please try again.');
+            this.showPaymentLoading(false);
+        }
+    }
+
+    // Validate UPI ID format
+    validateUPI(upiId) {
+        // UPI format: username@bankname or mobile@upi
+        const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
+        return upiRegex.test(upiId);
+    }
+
+    // Simulate UPI payment (replace with actual payment gateway in production)
+    async initiateUPIPayment(upiId, vendorOrder) {
+        return new Promise((resolve) => {
+            // Show UPI confirmation modal
+            this.showUPIConfirmation(upiId, vendorOrder, (confirmed) => {
+                if (confirmed) {
+                    // Simulate payment processing delay
+                    setTimeout(() => {
+                        resolve({
+                            success: true,
+                            transaction_id: this.generateTransactionId(),
+                            payment_method: 'UPI',
+                            upi_id: upiId,
+                            amount: vendorOrder.total
+                        });
+                    }, 2000);
+                } else {
+                    resolve({
+                        success: false,
+                        reason: 'Payment cancelled by user'
+                    });
+                }
+            });
+        });
+    }
+
+    // Show UPI confirmation dialog (simulating UPI app confirmation)
+    showUPIConfirmation(upiId, vendorOrder, callback) {
+        const confirmModal = document.getElementById('upi-confirm-modal');
+        if (!confirmModal) return;
+
+        document.getElementById('confirm-upi-id').textContent = upiId;
+        document.getElementById('confirm-amount').textContent = `₹${vendorOrder.total.toFixed(2)}`;
+        document.getElementById('confirm-vendor').textContent = vendorOrder.vendor_name;
+
+        confirmModal.classList.add('active');
+
+        // Set up confirmation buttons
+        document.getElementById('upi-confirm-btn').onclick = () => {
+            confirmModal.classList.remove('active');
+            callback(true);
+        };
+
+        document.getElementById('upi-cancel-btn').onclick = () => {
+            confirmModal.classList.remove('active');
+            callback(false);
+        };
+    }
+
+    // Handle successful payment
+    async handleSuccessfulPayment(vendorOrder, paymentResult) {
+        try {
+            // Create order on backend
+            const orderData = {
+                items: vendorOrder.items.map(item => ({
+                    menu_item_id: item.menu_item_id,
+                    qty: item.qty
+                })),
+                payment_method: 'UPI',
+                upi_id: paymentResult.upi_id,
+                transaction_id: paymentResult.transaction_id,
+                vendor_name: vendorOrder.vendor_name
+            };
+
+            const response = await api.createOrder(orderData);
+
+            if (response.success) {
+                // Store completed payment info
+                this.completedPayments.push({
+                    vendor: vendorOrder.vendor_name,
+                    token: response.token,
+                    amount: vendorOrder.total,
+                    transaction_id: paymentResult.transaction_id
+                });
+
+                // Remove paid items from cart
+                this.removeVendorItemsFromCart(vendorOrder);
+
+                // Show success message
+                this.showPaymentSuccess(vendorOrder.vendor_name, response.token);
+
+                // Wait for user to acknowledge, then move to next vendor
+                setTimeout(() => {
+                    this.hidePaymentModal();
+                    this.currentVendorIndex++;
+                    
+                    // Process next vendor after a short delay
+                    setTimeout(() => {
+                        this.processNextVendor();
+                    }, 500);
+                }, 2000);
+
+            } else {
+                throw new Error(response.error || 'Order creation failed');
+            }
+
+        } catch (error) {
+            console.error('Order creation error:', error);
+            this.app.showError('Failed to create order. Please contact support.');
+            this.failedPayments.push({
+                vendor: vendorOrder.vendor_name,
+                reason: error.message
+            });
+            this.showPaymentLoading(false);
+        }
+    }
+
+    // Handle failed payment
+    handleFailedPayment(vendorOrder, reason) {
+        this.failedPayments.push({
+            vendor: vendorOrder.vendor_name,
+            reason: reason
+        });
+
+        this.showPaymentLoading(false);
+
+        // Ask user if they want to retry or skip
+        this.showPaymentFailedDialog(vendorOrder, reason);
+    }
+
+    // Show payment failed dialog with retry/skip options
+    showPaymentFailedDialog(vendorOrder, reason) {
+        const dialog = document.getElementById('payment-failed-dialog');
+        if (!dialog) return;
+
+        document.getElementById('failed-vendor-name').textContent = vendorOrder.vendor_name;
+        document.getElementById('failed-reason').textContent = reason;
+
+        dialog.classList.add('active');
+
+        // Retry button
+        document.getElementById('payment-retry-btn').onclick = () => {
+            dialog.classList.remove('active');
+            this.showPaymentModal(vendorOrder);
+        };
+
+        // Skip button
+        document.getElementById('payment-skip-btn').onclick = () => {
+            dialog.classList.remove('active');
+            this.currentVendorIndex++;
+            
+            if (this.currentVendorIndex < this.vendorOrders.length) {
+                setTimeout(() => this.processNextVendor(), 500);
+            } else {
+                this.completeCheckout();
+            }
+        };
+
+        // Cancel all button
+        document.getElementById('payment-cancel-all-btn').onclick = () => {
+            dialog.classList.remove('active');
+            this.completeCheckout();
+        };
+    }
+
+    // Show payment loading state
+    showPaymentLoading(show) {
+        const loadingEl = document.getElementById('payment-loading');
+        const formEl = document.getElementById('payment-form-content');
+        
+        if (loadingEl && formEl) {
+            if (show) {
+                loadingEl.style.display = 'flex';
+                formEl.style.display = 'none';
+            } else {
+                loadingEl.style.display = 'none';
+                formEl.style.display = 'block';
+            }
+        }
+    }
+
+    // Show payment success notification
+    showPaymentSuccess(vendorName, token) {
+        this.app.showNotification(`✅ Payment successful for ${vendorName}! Token: ${token}`);
+    }
+
+    // Remove vendor items from cart
+    removeVendorItemsFromCart(vendorOrder) {
+        this.app.cart = this.app.cart.filter(item => 
+            item.outlet_name !== vendorOrder.vendor_name
+        );
+        this.app.updateCartDisplay();
+    }
+
+    // Complete checkout process
+    async completeCheckout() {
+        this.hidePaymentModal();
+
+        // Update wallet balance
+        await this.app.updateWalletBalance();
+
+        // Show checkout summary
+        this.showCheckoutSummary();
+
+        // If all payments successful, clear remaining cart
+        if (this.failedPayments.length === 0 && this.app.cart.length === 0) {
+            this.app.closeCart();
+            
+            // Redirect to bills page after delay
+            setTimeout(() => {
+                window.location.href = 'bills.html';
+            }, 3000);
+        }
+    }
+
+    // Show checkout summary
+    showCheckoutSummary() {
+        const summaryHTML = `
+            <div class="checkout-summary-modal active" id="checkout-summary-modal">
+                <div class="checkout-summary-content">
+                    <h2>Checkout Summary</h2>
+                    
+                    ${this.completedPayments.length > 0 ? `
+                        <div class="summary-section success-section">
+                            <h3>✅ Successful Payments (${this.completedPayments.length})</h3>
+                            ${this.completedPayments.map(payment => `
+                                <div class="summary-item">
+                                    <strong>${payment.vendor}</strong>
+                                    <span>Token: ${payment.token}</span>
+                                    <span>Amount: ₹${payment.amount.toFixed(2)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    ${this.failedPayments.length > 0 ? `
+                        <div class="summary-section failed-section">
+                            <h3>❌ Failed/Cancelled (${this.failedPayments.length})</h3>
+                            ${this.failedPayments.map(payment => `
+                                <div class="summary-item">
+                                    <strong>${payment.vendor}</strong>
+                                    <span>${payment.reason}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    <button class="btn-primary" onclick="closeCheckoutSummary()">
+                        ${this.completedPayments.length > 0 ? 'View Bills' : 'Close'}
+                    </button>
+                </div>
+            </div>
+        `;
+
+        // Remove existing summary if any
+        const existing = document.getElementById('checkout-summary-modal');
+        if (existing) existing.remove();
+
+        // Add new summary
+        document.body.insertAdjacentHTML('beforeend', summaryHTML);
+    }
+
+    // Generate unique transaction ID
+    generateTransactionId() {
+        const timestamp = Date.now();
+        const random = Math.random().toString(36).substring(2, 15);
+        return `TXN${timestamp}${random}`.toUpperCase();
+    }
+
+    // Cancel checkout process
+    cancelCheckout() {
+        if (confirm('Are you sure you want to cancel the checkout process?')) {
+            this.hidePaymentModal();
+            this.completeCheckout();
+        }
+    }
+}
+
+function processPayment() {
+    const upiId = document.getElementById('upi-id-input').value.trim();
+    app.paymentProcessor.processUPIPayment(upiId);
+}
+
+function cancelPayment() {
+    app.paymentProcessor.cancelCheckout();
+}
+
+function closeCheckoutSummary() {
+    const modal = document.getElementById('checkout-summary-modal');
+    if (modal) modal.remove();
+    
+    if (app.paymentProcessor.completedPayments.length > 0) {
+        window.location.href = 'bills.html';
     }
 }
 
