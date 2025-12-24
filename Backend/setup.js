@@ -102,7 +102,40 @@ async function setupDatabase() {
       );
     `);
 
-    // Create indexes
+    // Update vendors table for wallet and UPI
+    await client.query(`
+      ALTER TABLE vendors 
+      ADD COLUMN IF NOT EXISTS wallet_balance DECIMAL(10,2) DEFAULT 0.00,
+      ADD COLUMN IF NOT EXISTS upi_id VARCHAR(100);
+      `);
+      
+      // Create vendor transactions table
+      await client.query(`
+        CREATE TABLE IF NOT EXISTS vendor_transactions (
+        id SERIAL PRIMARY KEY,
+        vendor_id INTEGER REFERENCES vendors(id) ON DELETE CASCADE,
+        amount DECIMAL(10,2) NOT NULL,
+        type VARCHAR(10) NOT NULL,
+        description TEXT,
+        reference_id VARCHAR(100),
+        payment_id VARCHAR(100),
+        created_at TIMESTAMP DEFAULT NOW()
+        );
+        `);
+        
+        // Add Razorpay fields to orders table
+        await client.query(`
+          ALTER TABLE orders
+          ADD COLUMN IF NOT EXISTS razorpay_order_id VARCHAR(100),
+          ADD COLUMN IF NOT EXISTS razorpay_payment_id VARCHAR(100);
+          `);
+          
+          // Create indexes
+          await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_vendor_transactions_vendor_id 
+            ON vendor_transactions(vendor_id);
+            `);
+
     await client.query(`
       CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
     `);
@@ -111,6 +144,8 @@ async function setupDatabase() {
     `);
 
     console.log('Tables created successfully!');
+
+    console.log('✅ Vendor wallet and payment tables created!');
 
     // Check if vendors already exist
     const vendorCheck = await client.query('SELECT COUNT(*) FROM vendors');

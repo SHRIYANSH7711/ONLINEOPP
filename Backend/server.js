@@ -1,4 +1,4 @@
-// server.js
+// server.js - COMPLETE VERSION
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
@@ -7,13 +7,20 @@ const jwt = require('jsonwebtoken');
 const path = require('path');
 const pool = require('./db');
 const { verifyToken, requireRole } = require('./middleware/auth');
+const Razorpay = require('razorpay');
+const crypto = require('crypto');
 
 const app = express();
 const port = process.env.PORT || 3001;
 
+// Initialize Razorpay
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
 // ==================== MIDDLEWARE ====================
 
-// CORS Configuration
 app.use(cors({
   origin: process.env.NODE_ENV === 'production' 
     ? process.env.FRONTEND_URL 
@@ -26,14 +33,12 @@ app.use(express.static(path.join(__dirname, '../Frontend')));
 
 // Simple rate limiting (in-memory)
 const loginAttempts = new Map();
-const rateLimitWindow = 15 * 60 * 1000; // 15 minutes
+const rateLimitWindow = 15 * 60 * 1000;
 const maxAttempts = 5;
 
 function checkRateLimit(identifier) {
   const now = Date.now();
   const attempts = loginAttempts.get(identifier) || [];
-  
-  // Remove old attempts outside the window
   const recentAttempts = attempts.filter(time => now - time < rateLimitWindow);
   
   if (recentAttempts.length >= maxAttempts) {
@@ -65,7 +70,6 @@ function sanitizeInput(str) {
 app.post('/api/signup', async (req, res) => {
   const { name, email, password, role } = req.body;
   
-  // Input validation
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'All fields are required' });
   }
@@ -88,7 +92,6 @@ app.post('/api/signup', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Check if user exists
     const existingUser = await client.query(
       'SELECT id FROM users WHERE email = $1', 
       [sanitizedEmail]
@@ -99,10 +102,8 @@ app.post('/api/signup', async (req, res) => {
       return res.status(400).json({ error: 'User already exists with this email' });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
     
-    // Create user
     const result = await client.query(
       'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
       [sanitizedName, sanitizedEmail, hashedPassword, userRole]
@@ -112,7 +113,6 @@ app.post('/api/signup', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Generate token
     const token = jwt.sign(
       { id: user.id, email: user.email, role: user.role },
       process.env.JWT_SECRET,
@@ -142,7 +142,6 @@ app.post('/api/login', async (req, res) => {
 
   const sanitizedEmail = sanitizeInput(email.toLowerCase());
 
-  // Rate limiting check
   if (!checkRateLimit(sanitizedEmail)) {
     return res.status(429).json({ 
       error: 'Too many login attempts. Please try again in 15 minutes.' 
@@ -166,7 +165,6 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
-    // Clear rate limit on successful login
     loginAttempts.delete(sanitizedEmail);
 
     const token = jwt.sign(
@@ -225,7 +223,7 @@ app.get('/api/menu/vendor', verifyToken, requireRole('vendor'), async (req, res)
     const vendorId = vendorRes.rows[0].id;
 
     const result = await pool.query(
-      'SELECT id, name, price, is_available, category FROM menu_items WHERE vendor_id = $1 ORDER BY name',
+      'SELECT id, name, price, is_available, category, image_url FROM menu_items WHERE vendor_id = $1 ORDER BY name',
       [vendorId]
     );
     res.json(result.rows);
@@ -244,7 +242,6 @@ app.patch('/api/menu/:id/availability', verifyToken, requireRole('vendor'), asyn
   }
 
   try {
-    // Verify the menu item belongs to this vendor
     const vendorRes = await pool.query(
       'SELECT id FROM vendors WHERE owner_user_id = $1',
       [req.user.id]
@@ -272,15 +269,9 @@ app.patch('/api/menu/:id/availability', verifyToken, requireRole('vendor'), asyn
   }
 });
 
-// Add this to your server.js after the existing menu endpoints
-
-// ==================== ADD/DELETE MENU ITEM ROUTES ====================
-
-// Add new menu item (vendor only)
 app.post('/api/menu', verifyToken, requireRole('vendor'), async (req, res) => {
-  const { name, price, description, category } = req.body;
+  const { name, price, description, category, image_url } = req.body;
   
-  // Validation
   if (!name || !price) {
     return res.status(400).json({ error: 'Name and price are required' });
   }
@@ -294,7 +285,6 @@ app.post('/api/menu', verifyToken, requireRole('vendor'), async (req, res) => {
   const sanitizedCategory = category ? category.trim() : null;
 
   try {
-    // Get vendor ID
     const vendorRes = await pool.query(
       'SELECT id FROM vendors WHERE owner_user_id = $1',
       [req.user.id]
@@ -306,7 +296,6 @@ app.post('/api/menu', verifyToken, requireRole('vendor'), async (req, res) => {
 
     const vendorId = vendorRes.rows[0].id;
 
-    // Check if item already exists (same name and price for this vendor)
     const existingItem = await pool.query(
       'SELECT id FROM menu_items WHERE vendor_id = $1 AND name = $2 AND price = $3',
       [vendorId, sanitizedName, parseFloat(price)]
@@ -318,12 +307,11 @@ app.post('/api/menu', verifyToken, requireRole('vendor'), async (req, res) => {
       });
     }
 
-    // Insert new menu item
     const result = await pool.query(`
-      INSERT INTO menu_items (vendor_id, name, price, description, category, is_available)
-      VALUES ($1, $2, $3, $4, $5, true)
+      INSERT INTO menu_items (vendor_id, name, price, description, category, image_url, is_available)
+      VALUES ($1, $2, $3, $4, $5, $6, true)
       RETURNING *
-    `, [vendorId, sanitizedName, parseFloat(price), sanitizedDescription, sanitizedCategory]);
+    `, [vendorId, sanitizedName, parseFloat(price), sanitizedDescription, sanitizedCategory, image_url]);
 
     res.status(201).json({
       success: true,
@@ -337,18 +325,15 @@ app.post('/api/menu', verifyToken, requireRole('vendor'), async (req, res) => {
   }
 });
 
-// Update menu item (vendor only)
 app.patch('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res) => {
-  const { name, price, description, category } = req.body;
+  const { name, price, description, category, image_url } = req.body;
   const itemId = req.params.id;
 
-  // Validation
   if (price && price <= 0) {
     return res.status(400).json({ error: 'Price must be greater than 0' });
   }
 
   try {
-    // Get vendor ID
     const vendorRes = await pool.query(
       'SELECT id FROM vendors WHERE owner_user_id = $1',
       [req.user.id]
@@ -360,7 +345,6 @@ app.patch('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res) 
 
     const vendorId = vendorRes.rows[0].id;
 
-    // Build update query dynamically
     const updates = [];
     const values = [];
     let paramCount = 1;
@@ -389,11 +373,16 @@ app.patch('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res) 
       paramCount++;
     }
 
+    if (image_url !== undefined) {
+      updates.push(`image_url = $${paramCount}`);
+      values.push(image_url ? image_url.trim() : null);
+      paramCount++;
+    }
+
     if (updates.length === 0) {
       return res.status(400).json({ error: 'No fields to update' });
     }
 
-    // Add item ID and vendor ID to values
     values.push(itemId, vendorId);
 
     const result = await pool.query(`
@@ -419,24 +408,21 @@ app.patch('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res) 
   }
 });
 
-// Delete menu item (vendor only)
 app.delete('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res) => {
   const itemId = req.params.id;
 
   try {
-    // Get vendor ID
     const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1',
+      'SELECT id FROM vendors WHERE owner_user_id = $1', 
       [req.user.id]
     );
-
+    
     if (vendorRes.rows.length === 0) {
       return res.status(403).json({ error: 'Vendor not found' });
     }
 
     const vendorId = vendorRes.rows[0].id;
 
-    // Check if item is used in any orders
     const orderCheck = await pool.query(
       'SELECT COUNT(*) FROM order_items WHERE menu_item_id = $1',
       [itemId]
@@ -445,7 +431,6 @@ app.delete('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res)
     const orderCount = parseInt(orderCheck.rows[0].count);
 
     if (orderCount > 0) {
-      // Instead of deleting, just mark as unavailable
       await pool.query(
         'UPDATE menu_items SET is_available = false WHERE id = $1 AND vendor_id = $2',
         [itemId, vendorId]
@@ -458,7 +443,6 @@ app.delete('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res)
       });
     }
 
-    // Delete the item
     const result = await pool.query(
       'DELETE FROM menu_items WHERE id = $1 AND vendor_id = $2 RETURNING *',
       [itemId, vendorId]
@@ -480,107 +464,96 @@ app.delete('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res)
   }
 });
 
-// ==================== ORDER ROUTES ====================
+// ==================== REAL UPI PAYMENT INTEGRATION ====================
 
-app.post('/api/orders', verifyToken, async (req, res) => {
-  const userId = req.user.id;
-  const { items, payment_method, upi_id, transaction_id, vendor_name } = req.body;
+app.post('/api/payment/create-order', verifyToken, async (req, res) => {
+  const { amount, vendor_name, vendor_upi_id, items } = req.body;
+  
+  try {
+    const options = {
+      amount: Math.round(amount * 100),
+      currency: 'INR',
+      receipt: `rcpt_${Date.now()}`,
+      notes: {
+        vendor_name: vendor_name,
+        vendor_upi: vendor_upi_id,
+        user_id: req.user.id,
+        items: JSON.stringify(items)
+      }
+    };
 
-  // Validation
-  if (!Array.isArray(items) || items.length === 0) {
-    return res.status(400).json({ error: 'No items provided' });
+    const razorpayOrder = await razorpay.orders.create(options);
+
+    res.json({
+      success: true,
+      order_id: razorpayOrder.id,
+      amount: razorpayOrder.amount,
+      currency: razorpayOrder.currency,
+      key_id: process.env.RAZORPAY_KEY_ID
+    });
+
+  } catch (error) {
+    console.error('Razorpay order creation failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to create payment order' 
+    });
   }
+});
 
-  if (!payment_method || payment_method !== 'UPI') {
-    return res.status(400).json({ error: 'Invalid payment method' });
-  }
-
-  if (!upi_id || !transaction_id) {
-    return res.status(400).json({ error: 'Payment details required' });
-  }
-
-  // Validate items structure
-  for (const item of items) {
-    if (!item.menu_item_id || !item.qty || item.qty < 1) {
-      return res.status(400).json({ error: 'Invalid item structure' });
-    }
-  }
+app.post('/api/payment/verify', verifyToken, async (req, res) => {
+  const { 
+    razorpay_order_id, 
+    razorpay_payment_id, 
+    razorpay_signature,
+    vendor_name,
+    vendor_id,
+    items,
+    amount 
+  } = req.body;
 
   const client = await pool.connect();
+  
   try {
-    await client.query('BEGIN');
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET)
+      .update(body.toString())
+      .digest('hex');
 
-    // Get user balance (not needed for UPI, but keep for logging)
-    const userResult = await client.query(
-      'SELECT wallet_balance FROM users WHERE id = $1', 
-      [userId]
-    );
-    const userBalance = parseFloat(userResult.rows[0].wallet_balance);
-
-    // Get menu items and verify they're from the same vendor
-    const menuIds = items.map(item => item.menu_item_id);
-    const menuQuery = `
-      SELECT m.id, m.name, m.price, m.vendor_id, v.outlet_name
-      FROM menu_items m
-      JOIN vendors v ON v.id = m.vendor_id
-      WHERE m.id = ANY($1) AND m.is_available = true
-    `;
-    const menuResult = await client.query(menuQuery, [menuIds]);
-    
-    if (menuResult.rows.length !== menuIds.length) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Some items are not available' });
-    }
-
-    // Verify all items are from the same vendor
-    const vendorIds = [...new Set(menuResult.rows.map(m => m.vendor_id))];
-    if (vendorIds.length > 1) {
-      await client.query('ROLLBACK');
-      return res.status(400).json({ error: 'Items must be from the same vendor' });
-    }
-
-    const vendorId = vendorIds[0];
-    const actualVendorName = menuResult.rows[0].outlet_name;
-
-    // Calculate total
-    let totalAmount = 0;
-    const orderItems = [];
-
-    for (const item of items) {
-      const menuItem = menuResult.rows.find(m => m.id === item.menu_item_id);
-      if (!menuItem) {
-        throw new Error('Item not found');
-      }
-      
-      const itemTotal = parseFloat(menuItem.price) * parseInt(item.qty);
-      totalAmount += itemTotal;
-      
-      orderItems.push({
-        menu_item_id: item.menu_item_id,
-        qty: item.qty,
-        price: menuItem.price,
-        vendor_id: menuItem.vendor_id
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid payment signature' 
       });
     }
 
-    // Generate token for this vendor
+    const payment = await razorpay.payments.fetch(razorpay_payment_id);
+
+    if (payment.status !== 'captured' && payment.status !== 'authorized') {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Payment not successful' 
+      });
+    }
+
+    await client.query('BEGIN');
+
     const today = new Date();
     const dateKey = today.toISOString().split('T')[0];
     
-    // Get counter for this vendor and date
     const counterResult = await client.query(`
       INSERT INTO vendor_order_counters (vendor_id, order_date, counter) 
       VALUES ($1, $2, 1)
       ON CONFLICT (vendor_id, order_date) 
       DO UPDATE SET counter = vendor_order_counters.counter + 1
       RETURNING counter
-    `, [vendorId, dateKey]);
+    `, [vendor_id, dateKey]);
     
     const orderOfDay = counterResult.rows[0].counter;
     const [year, month, day] = dateKey.split('-');
     const token = `${day}_${month}_${year}_${String(orderOfDay).padStart(3, '0')}`;
 
-    // Create order with payment details
     const orderResult = await client.query(`
       INSERT INTO orders (
         user_id, 
@@ -591,33 +564,59 @@ app.post('/api/orders', verifyToken, async (req, res) => {
         payment_method,
         upi_id,
         transaction_id,
-        payment_status
+        payment_status,
+        razorpay_order_id,
+        razorpay_payment_id
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) 
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) 
       RETURNING id
     `, [
-      userId, 
+      req.user.id, 
       token, 
-      totalAmount, 
+      amount / 100, 
       dateKey, 
       orderOfDay,
-      payment_method,
-      upi_id,
-      transaction_id,
-      'completed'
+      'UPI',
+      payment.vpa || 'UPI Payment',
+      razorpay_payment_id,
+      'completed',
+      razorpay_order_id,
+      razorpay_payment_id
     ]);
     
     const orderId = orderResult.rows[0].id;
 
-    // Insert order items
-    for (const item of orderItems) {
+    for (const item of items) {
       await client.query(`
         INSERT INTO order_items (order_id, menu_item_id, qty, price, vendor_id)
         VALUES ($1, $2, $3, $4, $5)
-      `, [orderId, item.menu_item_id, item.qty, item.price, item.vendor_id]);
+      `, [orderId, item.menu_item_id, item.qty, item.price, vendor_id]);
     }
 
-    // Create payment transaction record
+    await client.query(`
+      UPDATE vendors 
+      SET wallet_balance = wallet_balance + $1 
+      WHERE id = $2
+    `, [amount / 100, vendor_id]);
+
+    await client.query(`
+      INSERT INTO vendor_transactions (
+        vendor_id, 
+        amount, 
+        type, 
+        description, 
+        reference_id,
+        payment_id
+      )
+      VALUES ($1, $2, 'credit', $3, $4, $5)
+    `, [
+      vendor_id,
+      amount / 100,
+      `Order payment - Token: ${token}`,
+      token,
+      razorpay_payment_id
+    ]);
+
     await client.query(`
       INSERT INTO transactions (
         user_id, 
@@ -630,23 +629,22 @@ app.post('/api/orders', verifyToken, async (req, res) => {
       )
       VALUES ($1, $2, 'debit', $3, $4, $5, $6)
     `, [
-      userId, 
-      totalAmount, 
-      `Order payment via ${payment_method} - ${actualVendorName}`, 
+      req.user.id, 
+      amount / 100, 
+      `Order payment - ${vendor_name}`, 
       token,
-      payment_method,
-      transaction_id
+      'UPI',
+      razorpay_payment_id
     ]);
 
-    // Create notification for customer
     await client.query(`
       INSERT INTO notifications (user_id, title, message, type, reference_id, is_read)
       VALUES ($1, $2, $3, $4, $5, false)
     `, [
-      userId, 
-      'Order Placed Successfully', 
-      `Your order from ${actualVendorName} has been placed. Token: ${token}`,
-      'order',
+      req.user.id, 
+      'Payment Successful', 
+      `Your payment of ₹${(amount / 100).toFixed(2)} was successful. Order Token: ${token}`,
+      'payment',
       token
     ]);
 
@@ -656,19 +654,122 @@ app.post('/api/orders', verifyToken, async (req, res) => {
       success: true,
       order_id: orderId,
       token: token,
-      total: totalAmount,
-      vendor_name: actualVendorName,
-      transaction_id: transaction_id
+      payment_id: razorpay_payment_id,
+      amount: amount / 100
     });
 
-  } catch (err) {
+  } catch (error) {
     await client.query('ROLLBACK');
-    console.error('Order creation failed:', err);
-    res.status(400).json({ error: err.message });
+    console.error('Payment verification failed:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Payment verification failed' 
+    });
   } finally {
     client.release();
   }
 });
+
+app.get('/api/vendor/:vendorId/upi', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT upi_id, outlet_name FROM vendors WHERE id = $1',
+      [req.params.vendorId]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    res.json({
+      upi_id: result.rows[0].upi_id,
+      outlet_name: result.rows[0].outlet_name
+    });
+
+  } catch (error) {
+    console.error('Vendor UPI fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch vendor UPI' });
+  }
+});
+
+// ==================== VENDOR WALLET & UPI MANAGEMENT ====================
+
+app.get('/api/vendor/wallet', verifyToken, requireRole('vendor'), async (req, res) => {
+  try {
+    const vendorRes = await pool.query(
+      'SELECT id FROM vendors WHERE owner_user_id = $1', 
+      [req.user.id]
+    );
+    
+    if (vendorRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+    
+    const vendorId = vendorRes.rows[0].id;
+
+    const walletRes = await pool.query(
+      'SELECT wallet_balance, upi_id FROM vendors WHERE id = $1',
+      [vendorId]
+    );
+
+    const transactionsRes = await pool.query(`
+      SELECT amount, type, description, created_at, payment_id
+      FROM vendor_transactions 
+      WHERE vendor_id = $1 
+      ORDER BY created_at DESC 
+      LIMIT 50
+    `, [vendorId]);
+
+    res.json({
+      balance: walletRes.rows[0].wallet_balance || 0,
+      upi_id: walletRes.rows[0].upi_id,
+      transactions: transactionsRes.rows
+    });
+
+  } catch (error) {
+    console.error('Vendor wallet fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch wallet info' });
+  }
+});
+
+app.post('/api/vendor/upi', verifyToken, requireRole('vendor'), async (req, res) => {
+  const { upi_id } = req.body;
+
+  const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
+  if (!upiRegex.test(upi_id)) {
+    return res.status(400).json({ error: 'Invalid UPI ID format' });
+  }
+
+  try {
+    const vendorRes = await pool.query(
+      'SELECT id FROM vendors WHERE owner_user_id = $1', 
+      [req.user.id]
+    );
+    
+    if (vendorRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+    
+    const vendorId = vendorRes.rows[0].id;
+
+    await pool.query(
+      'UPDATE vendors SET upi_id = $1 WHERE id = $2',
+      [upi_id, vendorId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'UPI ID updated successfully',
+      upi_id: upi_id 
+    });
+
+  } catch (error) {
+    console.error('UPI update error:', error);
+    res.status(500).json({ error: 'Failed to update UPI ID' });
+  }
+});
+
+// ==================== ORDER ROUTES ====================
 
 app.get('/api/orders', verifyToken, async (req, res) => {
   try {
@@ -710,19 +811,19 @@ app.get('/api/orders/vendor', verifyToken, requireRole('vendor'), async (req, re
     const vendorId = vendorRes.rows[0].id;
     
     const result = await pool.query(`
-  SELECT o.id, o.token, o.total_amount, o.status, o.created_at,
-         json_agg(json_build_object(
-           'name', m.name,
-           'qty', oi.qty,
-           'price', oi.price
-         )) as items
-  FROM orders o
-  JOIN order_items oi ON oi.order_id = o.id
-  JOIN menu_items m ON m.id = oi.menu_item_id
-  WHERE oi.vendor_id = $1
-  GROUP BY o.id, o.token, o.total_amount, o.status, o.created_at
-  ORDER BY o.created_at DESC
-`, [vendorId]);
+      SELECT o.id, o.token, o.total_amount, o.status, o.created_at,
+             json_agg(json_build_object(
+               'name', m.name,
+               'qty', oi.qty,
+               'price', oi.price
+             )) as items
+      FROM orders o
+      JOIN order_items oi ON oi.order_id = o.id
+      JOIN menu_items m ON m.id = oi.menu_item_id
+      WHERE oi.vendor_id = $1
+      GROUP BY o.id, o.token, o.total_amount, o.status, o.created_at
+      ORDER BY o.created_at DESC
+    `, [vendorId]);
 
     res.json(result.rows);
   } catch (err) {
@@ -730,10 +831,6 @@ app.get('/api/orders/vendor', verifyToken, requireRole('vendor'), async (req, re
     res.status(500).json({ error: 'Failed to fetch vendor orders' });
   }
 });
-
-// Add this to your existing server.js
-// Find the PATCH /api/orders/:id/status endpoint (around line 460-480)
-// and REPLACE it with this updated version:
 
 app.patch('/api/orders/:id/status', verifyToken, requireRole('vendor'), async (req, res) => {
   const { status } = req.body;
@@ -748,9 +845,8 @@ app.patch('/api/orders/:id/status', verifyToken, requireRole('vendor'), async (r
   try {
     await client.query('BEGIN');
 
-    // Get the order details including user_id and token
     const orderResult = await client.query(
-      'SELECT user_id, token, status as old_status FROM orders WHERE id = $1',
+      'SELECT user_id, token FROM orders WHERE id = $1',
       [orderId]
     );
     
@@ -762,16 +858,21 @@ app.patch('/api/orders/:id/status', verifyToken, requireRole('vendor'), async (r
     const order = orderResult.rows[0];
     const userId = order.user_id;
     const token = order.token;
-    const oldStatus = order.old_status;
 
-    // Update order status
     const updateResult = await client.query(
       'UPDATE orders SET status = $1 WHERE id = $2 RETURNING *',
       [status, orderId]
     );
 
-    // Create notification for the customer
-    const notificationMessage = getStatusNotificationMessage(status, token);
+    const notificationMessages = {
+      'confirmed': `Your order ${token} has been confirmed and is being prepared.`,
+      'preparing': `Your order ${token} is now being prepared by the vendor.`,
+      'ready': `Great news! Your order ${token} is ready for pickup. Please collect it from the counter.`,
+      'completed': `Your order ${token} has been completed. Thank you for ordering with us!`
+    };
+
+    const notificationMessage = notificationMessages[status] || `Your order ${token} status has been updated to ${status}.`;
+
     await client.query(`
       INSERT INTO notifications (user_id, title, message, type, reference_id, is_read)
       VALUES ($1, $2, $3, $4, $5, false)
@@ -789,18 +890,8 @@ app.patch('/api/orders/:id/status', verifyToken, requireRole('vendor'), async (r
   }
 });
 
-// Helper function to generate notification messages
-function getStatusNotificationMessage(status, token) {
-  const messages = {
-    'confirmed': `Your order ${token} has been confirmed and is being prepared.`,
-    'preparing': `Your order ${token} is now being prepared by the vendor.`,
-    'ready': `Great news! Your order ${token} is ready for pickup. Please collect it from the counter.`,
-    'completed': `Your order ${token} has been completed. Thank you for ordering with us!`
-  };
-  return messages[status] || `Your order ${token} status has been updated to ${status}.`;
-}
+// ==================== NOTIFICATION ROUTES ====================
 
-// Add new endpoint to get user notifications
 app.get('/api/notifications', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(`
@@ -818,7 +909,6 @@ app.get('/api/notifications', verifyToken, async (req, res) => {
   }
 });
 
-// Add endpoint to mark notification as read
 app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
@@ -837,7 +927,6 @@ app.patch('/api/notifications/:id/read', verifyToken, async (req, res) => {
   }
 });
 
-// Add endpoint to mark all notifications as read
 app.patch('/api/notifications/mark-all-read', verifyToken, async (req, res) => {
   try {
     await pool.query(
@@ -852,7 +941,6 @@ app.patch('/api/notifications/mark-all-read', verifyToken, async (req, res) => {
   }
 });
 
-// Add endpoint to get unread notification count
 app.get('/api/notifications/unread-count', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(

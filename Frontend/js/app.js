@@ -5,7 +5,7 @@ class CanTechApp {
         this.menuItems = [];
         this.outlets = [];
         this.bookmarks = [];
-        this.paymentProcessor = new PaymentProcessor(this);
+        this.paymentProcessor = new RealPaymentProcessor(this);
         this.init();
     }
 
@@ -21,11 +21,9 @@ class CanTechApp {
     }
 
     setupEventListeners() {
-        // Mobile menu toggle with overlay
         const menuToggle = document.querySelector('.menu-toggle');
         const sidebar = document.querySelector('.sidebar');
         
-        // Create overlay if it doesn't exist
         let overlay = document.querySelector('.sidebar-overlay');
         if (!overlay) {
             overlay = document.createElement('div');
@@ -34,7 +32,6 @@ class CanTechApp {
         }
 
         if (menuToggle && sidebar) {
-            // Toggle sidebar
             menuToggle.addEventListener('click', (e) => {
                 e.stopPropagation();
                 menuToggle.classList.toggle('is-active');
@@ -43,7 +40,6 @@ class CanTechApp {
                 document.body.classList.toggle('menu-open');
             });
 
-            // Close sidebar when clicking overlay
             overlay.addEventListener('click', () => {
                 menuToggle.classList.remove('is-active');
                 sidebar.classList.remove('active');
@@ -51,7 +47,6 @@ class CanTechApp {
                 document.body.classList.remove('menu-open');
             });
 
-            // Close sidebar when clicking a link on mobile
             const sidebarLinks = sidebar.querySelectorAll('a');
             sidebarLinks.forEach(link => {
                 link.addEventListener('click', () => {
@@ -65,7 +60,6 @@ class CanTechApp {
             });
         }
 
-        // Checkout button
         const checkoutBtn = document.getElementById('checkout-btn');
         if (checkoutBtn) {
             checkoutBtn.addEventListener('click', () => this.checkout());
@@ -76,7 +70,6 @@ class CanTechApp {
         const profileIcon = document.querySelector('.user');
         if (!profileIcon) return;
 
-        // Create profile dropdown
         const dropdown = document.createElement('div');
         dropdown.className = 'profile-dropdown';
         dropdown.innerHTML = `
@@ -99,16 +92,13 @@ class CanTechApp {
             </div>
         `;
         
-        // Insert dropdown after profile icon
         profileIcon.parentElement.style.position = 'relative';
         profileIcon.parentElement.appendChild(dropdown);
 
-        // Toggle dropdown
         profileIcon.addEventListener('click', (e) => {
             e.stopPropagation();
             dropdown.classList.toggle('active');
             
-            // Update dropdown content
             const user = auth.getCurrentUser();
             if (user) {
                 document.getElementById('dropdown-name').textContent = user.name;
@@ -116,7 +106,6 @@ class CanTechApp {
             }
         });
 
-        // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             if (!profileIcon.contains(e.target) && !dropdown.contains(e.target)) {
                 dropdown.classList.remove('active');
@@ -222,11 +211,9 @@ class CanTechApp {
         const itemIndex = this.bookmarks.findIndex(b => b === menuItemId);
         
         if (itemIndex > -1) {
-            // Remove from bookmarks
             this.bookmarks.splice(itemIndex, 1);
             this.showNotification('Removed from bookmarks');
         } else {
-            // Add to bookmarks
             this.bookmarks.push(menuItemId);
             this.showNotification('Added to bookmarks!');
         }
@@ -244,7 +231,6 @@ class CanTechApp {
     }
     
     updateBookmarkIcons() {
-        // Update all bookmark icons on cards
         document.querySelectorAll('.detail-favorites').forEach(icon => {
             const itemId = parseInt(icon.dataset.itemId);
             if (this.bookmarks.includes(itemId)) {
@@ -295,16 +281,15 @@ class CanTechApp {
         </div>
         `).join('');
     }
+
     toggleBookmarkPopup() {
         const bookmarkPopup = document.getElementById('bookmark-popup');
         if (bookmarkPopup) {
             const isActive = bookmarkPopup.classList.contains('active');
             
             if (isActive) {
-                // Close it
                 bookmarkPopup.classList.remove('active');
             } else {
-                // Open it and load bookmarks
                 bookmarkPopup.classList.add('active');
                 this.displayBookmarks();
             }
@@ -350,23 +335,23 @@ class CanTechApp {
     }
 
     renderPopularItems() {
-    const container = document.getElementById('popular-items');
-    if (!container) return;
-    
-    const popularItems = this.menuItems.slice(0, 4);
-    
-    const popularHTML = popularItems.map(item => `
-        <div class="highlight-card" onclick="app.addToCart(${item.id})">
-            ${this.getImageHTML(item.image_url, item.name, 'highlight-img')}
-            <div class="highlight-desc">
-                <h4>${item.name}</h4>
-                <p style="color: #7f8c8d; font-weight: 500;">${item.outlet_name}</p>
-                <p style="font-size: 1.15rem; font-weight: 700; color: #0e6253;">₹${parseFloat(item.price).toFixed(2)}</p>
-                <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
-                    Add to Cart
-                </button>
+        const container = document.getElementById('popular-items');
+        if (!container) return;
+        
+        const popularItems = this.menuItems.slice(0, 4);
+        
+        const popularHTML = popularItems.map(item => `
+            <div class="highlight-card" onclick="app.addToCart(${item.id})">
+                ${this.getImageHTML(item.image_url, item.name, 'highlight-img')}
+                <div class="highlight-desc">
+                    <h4>${item.name}</h4>
+                    <p style="color: #7f8c8d; font-weight: 500;">${item.outlet_name}</p>
+                    <p style="font-size: 1.15rem; font-weight: 700; color: #0e6253;">₹${parseFloat(item.price).toFixed(2)}</p>
+                    <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
+                        Add to Cart
+                    </button>
+                </div>
             </div>
-        </div>
         `).join('');
         
         container.innerHTML = popularHTML;
@@ -410,7 +395,6 @@ class CanTechApp {
         container.innerHTML = menuHTML;
     }
 
-
     filterByOutlet(outlet) {
         this.renderAllMenuItems(outlet);
         
@@ -427,20 +411,17 @@ class CanTechApp {
         searchInput.addEventListener('input', (e) => {
             const query = e.target.value.toLowerCase().trim();
             
-            // Show/hide sections based on search
             const popularSection = document.querySelector('.main-highlight');
             const outletsSection = document.querySelector('.main-filter');
             const menuSection = document.querySelector('.main-detail');
             
             if (query) {
-                // Hide popular and outlets when searching
                 if (popularSection) popularSection.style.display = 'none';
                 if (outletsSection) outletsSection.style.display = 'none';
                 if (menuSection) menuSection.style.display = 'block';
                 
                 this.filterMenuItems(query);
             } else {
-                // Show all sections when search is empty
                 if (popularSection) popularSection.style.display = 'block';
                 if (outletsSection) outletsSection.style.display = 'block';
                 if (menuSection) menuSection.style.display = 'block';
@@ -451,40 +432,39 @@ class CanTechApp {
     }
 
     filterMenuItems(query) {
-    const menuContainer = document.getElementById('menu');
-    if (!menuContainer) return;
+        const menuContainer = document.getElementById('menu');
+        if (!menuContainer) return;
 
-    const filteredItems = this.menuItems.filter(item =>
-        item.name.toLowerCase().includes(query) ||
-        item.outlet_name.toLowerCase().includes(query) ||
-        (item.category && item.category.toLowerCase().includes(query))
-    );
+        const filteredItems = this.menuItems.filter(item =>
+            item.name.toLowerCase().includes(query) ||
+            item.outlet_name.toLowerCase().includes(query) ||
+            (item.category && item.category.toLowerCase().includes(query))
+        );
 
-    if (filteredItems.length === 0) {
-        menuContainer.innerHTML = '<div class="no-results">No items found matching your search.</div>';
-        return;
-    }
+        if (filteredItems.length === 0) {
+            menuContainer.innerHTML = '<div class="no-results">No items found matching your search.</div>';
+            return;
+        }
 
-    const menuHTML = filteredItems.map(item => `
-        <div class="detail-card" data-category="${item.outlet_name}">
-            ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
-            <div class="detail-desc">
-                <div class="detail-name">
-                    <h4>${item.name}</h4>
-                    <p class="detail-sub">${item.outlet_name}</p>
-                    <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
-                    <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
-                        Add To Cart
-                    </button>
+        const menuHTML = filteredItems.map(item => `
+            <div class="detail-card" data-category="${item.outlet_name}">
+                ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
+                <div class="detail-desc">
+                    <div class="detail-name">
+                        <h4>${item.name}</h4>
+                        <p class="detail-sub">${item.outlet_name}</p>
+                        <p class="price">₹${parseFloat(item.price).toFixed(2)}</p>
+                        <button class="add-to-cart-btn" onclick="event.stopPropagation(); app.addToCart(${item.id})">
+                            Add To Cart
+                        </button>
+                    </div>
+                    <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
                 </div>
-                <ion-icon class="detail-favorites" name="bookmark-outline"></ion-icon>
             </div>
-        </div>
         `).join('');
         
         menuContainer.innerHTML = menuHTML;
     }
-
 
     addToCart(menuItemId) {
         const item = this.menuItems.find(item => item.id === menuItemId);
@@ -500,6 +480,7 @@ class CanTechApp {
                 name: item.name,
                 price: parseFloat(item.price),
                 outlet_name: item.outlet_name,
+                vendor_id: item.vendor_id,
                 qty: 1
             });
         }
@@ -507,7 +488,6 @@ class CanTechApp {
         this.updateCartDisplay();
         this.showNotification(`${item.name} added to cart!`);
         
-        // Add pulse animation to floating badge
         const floatingBadge = document.getElementById('floating-cart-badge');
         if (floatingBadge) {
             floatingBadge.classList.add('pulse');
@@ -536,47 +516,47 @@ class CanTechApp {
     }
 
     updateCartDisplay() {
-    const cartItemsBody = document.querySelector('#cart-items tbody');
-    const cartCountEl = document.getElementById('cart-count');
-    const cartTotalEl = document.getElementById('cart-total');
-    
-    // Floating badge elements
-    const floatingBadge = document.getElementById('floating-cart-badge');
-    const floatingCountEl = document.getElementById('floating-cart-count');
-    const floatingTotalEl = document.getElementById('floating-cart-total');
+        const cartItemsBody = document.querySelector('#cart-items tbody');
+        const cartCountEl = document.getElementById('cart-count');
+        const cartTotalEl = document.getElementById('cart-total');
+        
+        const floatingBadge = document.getElementById('floating-cart-badge');
+        const floatingCountEl = document.getElementById('floating-cart-count');
+        const floatingTotalEl = document.getElementById('floating-cart-total');
 
-    if (!cartItemsBody || !cartCountEl || !cartTotalEl) return;
+        if (!cartItemsBody || !cartCountEl || !cartTotalEl) return;
 
-    cartItemsBody.innerHTML = '';
+        cartItemsBody.innerHTML = '';
 
-    let totalCount = 0;
-    let totalAmount = 0;
+        let totalCount = 0;
+        let totalAmount = 0;
 
-    this.cart.forEach(item => {
-        const itemTotal = item.price * item.qty;
-        totalCount += item.qty;
-        totalAmount += itemTotal;
+        this.cart.forEach(item => {
+            const itemTotal = item.price * item.qty;
+            totalCount += item.qty;
+            totalAmount += itemTotal;
 
-        const row = cartItemsBody.insertRow();
-        row.innerHTML = `
-            <td>${item.name}</td>
-            <td>${item.outlet_name}</td>
-            <td class="item-count">${item.qty}</td>
-            <td class="item-price">₹${item.price.toFixed(2)}</td>
-            <td class="item-total">₹${itemTotal.toFixed(2)}</td>
-            <td class="actions-cell">
-                <button class="decrease-btn" onclick="app.updateCartQuantity(${item.menu_item_id}, -1)">➖</button>
-                <button class="increase-btn" onclick="app.updateCartQuantity(${item.menu_item_id}, 1)">➕</button>
-            </td>
+            const row = cartItemsBody.insertRow();
+            row.innerHTML = `
+                <td>${item.name}</td>
+                <td>${item.outlet_name}</td>
+                <td class="item-count">${item.qty}</td>
+                <td class="item-price">₹${item.price.toFixed(2)}</td>
+                <td class="item-total">₹${itemTotal.toFixed(2)}</td>
+                <td class="actions-cell">
+                    <button class="decrease-btn" onclick="app.updateCartQuantity(${item.menu_item_id}, -1)">➖</button>
+                    <button class="increase-btn" onclick="app.updateCartQuantity(${item.menu_item_id}, 1)">➕</button>
+                </td>
             `;
         });
+
         cartCountEl.textContent = totalCount;
         cartTotalEl.textContent = totalAmount.toFixed(2);
+
         if (floatingBadge && floatingCountEl && floatingTotalEl) {
             floatingCountEl.textContent = totalCount;
             floatingTotalEl.textContent = totalAmount.toFixed(2);
             
-            // Show/hide floating badge based on cart items
             if (totalCount > 0) {
                 floatingBadge.classList.add('active');
             } else {
@@ -591,7 +571,6 @@ class CanTechApp {
             return;
         }
         
-        // Start multi-vendor payment process
         this.paymentProcessor.startCheckout();
     }
 
@@ -697,21 +676,44 @@ class CanTechApp {
     }
 }
 
-
 // ============================================
-// MULTI-VENDOR PAYMENT SYSTEM WITH UPI
+// REAL UPI PAYMENT PROCESSOR
+// Add this after the CanTechApp class in app.js
 // ============================================
 
-class PaymentProcessor {
+class RealPaymentProcessor {
     constructor(app) {
         this.app = app;
         this.currentVendorIndex = 0;
         this.vendorOrders = [];
         this.completedPayments = [];
         this.failedPayments = [];
+        this.razorpayLoaded = false;
+        this.loadRazorpayScript();
     }
 
-    // Segregate cart items by vendor
+    loadRazorpayScript() {
+        if (document.querySelector('script[src*="razorpay"]')) {
+            this.razorpayLoaded = true;
+            return Promise.resolve(true);
+        }
+
+        return new Promise((resolve) => {
+            const script = document.createElement('script');
+            script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+            script.onload = () => {
+                console.log('✅ Razorpay loaded');
+                this.razorpayLoaded = true;
+                resolve(true);
+            };
+            script.onerror = () => {
+                console.error('❌ Razorpay failed to load');
+                resolve(false);
+            };
+            document.body.appendChild(script);
+        });
+    }
+
     segregateByVendor(cartItems) {
         const vendorMap = new Map();
         
@@ -719,6 +721,7 @@ class PaymentProcessor {
             if (!vendorMap.has(item.outlet_name)) {
                 vendorMap.set(item.outlet_name, {
                     vendor_name: item.outlet_name,
+                    vendor_id: item.vendor_id,
                     items: [],
                     total: 0
                 });
@@ -732,293 +735,188 @@ class PaymentProcessor {
         return Array.from(vendorMap.values());
     }
 
-    // Start the multi-vendor checkout process
     async startCheckout() {
         if (this.app.cart.length === 0) {
             this.app.showError('Your cart is empty!');
             return;
         }
 
-        // Segregate items by vendor
+        if (!this.razorpayLoaded) {
+            await this.loadRazorpayScript();
+        }
+
         this.vendorOrders = this.segregateByVendor(this.app.cart);
         this.currentVendorIndex = 0;
         this.completedPayments = [];
         this.failedPayments = [];
 
-        console.log('Segregated Orders:', this.vendorOrders);
-
-        // Show payment modal for first vendor
-        this.processNextVendor();
+        await this.processNextVendor();
     }
 
-    // Process payment for next vendor in queue
-    processNextVendor() {
+    async processNextVendor() {
         if (this.currentVendorIndex >= this.vendorOrders.length) {
-            // All vendors processed
             this.completeCheckout();
             return;
         }
 
         const currentVendor = this.vendorOrders[this.currentVendorIndex];
-        this.showPaymentModal(currentVendor);
-    }
-
-    // Show UPI payment modal for specific vendor
-    showPaymentModal(vendorOrder) {
-        const modal = document.getElementById('upi-payment-modal');
-        if (!modal) {
-            console.error('Payment modal not found!');
-            return;
-        }
-
-        // Update modal content
-        document.getElementById('payment-vendor-name').textContent = vendorOrder.vendor_name;
-        document.getElementById('payment-vendor-total').textContent = vendorOrder.total.toFixed(2);
         
-        // Show items list
-        const itemsList = document.getElementById('payment-items-list');
-        itemsList.innerHTML = vendorOrder.items.map(item => `
-            <div class="payment-item-row">
-                <span>${item.name} x ${item.qty}</span>
-                <span>₹${(item.price * item.qty).toFixed(2)}</span>
-            </div>
-        `).join('');
-
-        // Show vendor progress
-        document.getElementById('payment-progress').textContent = 
-            `Processing ${this.currentVendorIndex + 1} of ${this.vendorOrders.length} outlets`;
-
-        // Clear UPI ID input
-        document.getElementById('upi-id-input').value = '';
-        
-        // Show modal
-        modal.classList.add('active');
-    }
-
-    // Hide payment modal
-    hidePaymentModal() {
-        const modal = document.getElementById('upi-payment-modal');
-        if (modal) {
-            modal.classList.remove('active');
-        }
-    }
-
-    // Process UPI payment
-    async processUPIPayment(upiId) {
-        const currentVendor = this.vendorOrders[this.currentVendorIndex];
-        
-        if (!this.validateUPI(upiId)) {
-            this.app.showError('Please enter a valid UPI ID');
-            return;
-        }
-
         try {
-            // Show loading state
-            this.showPaymentLoading(true);
-
-            // Simulate UPI payment request
-            // In production, this would integrate with actual payment gateway
-            const paymentResult = await this.initiateUPIPayment(upiId, currentVendor);
-
-            if (paymentResult.success) {
-                // Payment successful - create order and generate bill
-                await this.handleSuccessfulPayment(currentVendor, paymentResult);
-            } else {
-                // Payment failed or cancelled
-                this.handleFailedPayment(currentVendor, paymentResult.reason);
+            this.app.showLoading(true);
+            const vendorInfo = await api.getVendorUPI(currentVendor.vendor_id);
+            this.app.showLoading(false);
+            
+            currentVendor.vendor_upi_id = vendorInfo.upi_id;
+            
+            if (!vendorInfo.upi_id) {
+                this.app.showError(`${currentVendor.vendor_name} hasn't set up UPI yet. Please contact vendor.`);
+                this.failedPayments.push({
+                    vendor: currentVendor.vendor_name,
+                    reason: 'Vendor UPI not configured'
+                });
+                this.currentVendorIndex++;
+                this.processNextVendor();
+                return;
             }
 
+            await this.initiateRazorpayPayment(currentVendor);
+
         } catch (error) {
-            console.error('Payment error:', error);
-            this.app.showError('Payment processing failed. Please try again.');
-            this.showPaymentLoading(false);
+            this.app.showLoading(false);
+            console.error('Vendor info fetch failed:', error);
+            this.app.showError('Failed to fetch vendor details');
         }
     }
 
-    // Validate UPI ID format
-    validateUPI(upiId) {
-        // UPI format: username@bankname or mobile@upi
-        const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
-        return upiRegex.test(upiId);
-    }
-
-    // Simulate UPI payment (replace with actual payment gateway in production)
-    async initiateUPIPayment(upiId, vendorOrder) {
-        return new Promise((resolve) => {
-            // Show UPI confirmation modal
-            this.showUPIConfirmation(upiId, vendorOrder, (confirmed) => {
-                if (confirmed) {
-                    // Simulate payment processing delay
-                    setTimeout(() => {
-                        resolve({
-                            success: true,
-                            transaction_id: this.generateTransactionId(),
-                            payment_method: 'UPI',
-                            upi_id: upiId,
-                            amount: vendorOrder.total
-                        });
-                    }, 2000);
-                } else {
-                    resolve({
-                        success: false,
-                        reason: 'Payment cancelled by user'
-                    });
-                }
-            });
-        });
-    }
-
-    // Show UPI confirmation dialog (simulating UPI app confirmation)
-    showUPIConfirmation(upiId, vendorOrder, callback) {
-        const confirmModal = document.getElementById('upi-confirm-modal');
-        if (!confirmModal) return;
-
-        document.getElementById('confirm-upi-id').textContent = upiId;
-        document.getElementById('confirm-amount').textContent = `₹${vendorOrder.total.toFixed(2)}`;
-        document.getElementById('confirm-vendor').textContent = vendorOrder.vendor_name;
-
-        confirmModal.classList.add('active');
-
-        // Set up confirmation buttons
-        document.getElementById('upi-confirm-btn').onclick = () => {
-            confirmModal.classList.remove('active');
-            callback(true);
-        };
-
-        document.getElementById('upi-cancel-btn').onclick = () => {
-            confirmModal.classList.remove('active');
-            callback(false);
-        };
-    }
-
-    // Handle successful payment
-    async handleSuccessfulPayment(vendorOrder, paymentResult) {
+    async initiateRazorpayPayment(vendorOrder) {
         try {
-            // Create order on backend
-            const orderData = {
-                items: vendorOrder.items.map(item => ({
-                    menu_item_id: item.menu_item_id,
-                    qty: item.qty
-                })),
-                payment_method: 'UPI',
-                upi_id: paymentResult.upi_id,
-                transaction_id: paymentResult.transaction_id,
-                vendor_name: vendorOrder.vendor_name
+            this.app.showLoading(true);
+
+            const orderData = await api.createRazorpayOrder({
+                amount: vendorOrder.total,
+                vendor_name: vendorOrder.vendor_name,
+                vendor_upi_id: vendorOrder.vendor_upi_id,
+                items: vendorOrder.items
+            });
+
+            this.app.showLoading(false);
+
+            const user = auth.getCurrentUser();
+
+            const options = {
+                key: orderData.key_id,
+                amount: orderData.amount,
+                currency: orderData.currency,
+                name: 'Onlineपेटपूजा',
+                description: `Payment to ${vendorOrder.vendor_name}`,
+                order_id: orderData.order_id,
+                prefill: {
+                    name: user?.name || '',
+                    email: user?.email || '',
+                    contact: user?.phone || ''
+                },
+                notes: {
+                    vendor_name: vendorOrder.vendor_name,
+                    vendor_upi: vendorOrder.vendor_upi_id
+                },
+                theme: {
+                    color: '#0e6253'
+                },
+                method: {
+                    upi: true,
+                    card: true,
+                    wallet: true,
+                    netbanking: true
+                },
+                handler: async (response) => {
+                    await this.handlePaymentSuccess(response, vendorOrder, orderData.amount);
+                },
+                modal: {
+                    ondismiss: () => {
+                        this.handlePaymentFailure(vendorOrder, 'Payment cancelled by user');
+                    }
+                }
             };
 
-            const response = await api.createOrder(orderData);
-
-            if (response.success) {
-                // Store completed payment info
-                this.completedPayments.push({
-                    vendor: vendorOrder.vendor_name,
-                    token: response.token,
-                    amount: vendorOrder.total,
-                    transaction_id: paymentResult.transaction_id
+            if (typeof Razorpay !== 'undefined') {
+                const rzp = new Razorpay(options);
+                
+                rzp.on('payment.failed', (response) => {
+                    this.handlePaymentFailure(vendorOrder, response.error.description);
                 });
 
-                // Remove paid items from cart
-                this.removeVendorItemsFromCart(vendorOrder);
-
-                // Show success message
-                this.showPaymentSuccess(vendorOrder.vendor_name, response.token);
-
-                // Wait for user to acknowledge, then move to next vendor
-                setTimeout(() => {
-                    this.hidePaymentModal();
-                    this.currentVendorIndex++;
-                    
-                    // Process next vendor after a short delay
-                    setTimeout(() => {
-                        this.processNextVendor();
-                    }, 500);
-                }, 2000);
-
+                rzp.open();
             } else {
-                throw new Error(response.error || 'Order creation failed');
+                throw new Error('Razorpay not loaded');
             }
 
         } catch (error) {
-            console.error('Order creation error:', error);
-            this.app.showError('Failed to create order. Please contact support.');
-            this.failedPayments.push({
-                vendor: vendorOrder.vendor_name,
-                reason: error.message
-            });
-            this.showPaymentLoading(false);
+            this.app.showLoading(false);
+            console.error('Razorpay initialization failed:', error);
+            this.handlePaymentFailure(vendorOrder, error.message);
         }
     }
 
-    // Handle failed payment
-    handleFailedPayment(vendorOrder, reason) {
+    async handlePaymentSuccess(razorpayResponse, vendorOrder, amount) {
+        try {
+            this.app.showLoading(true);
+
+            const verifyData = await api.verifyPayment({
+                razorpay_order_id: razorpayResponse.razorpay_order_id,
+                razorpay_payment_id: razorpayResponse.razorpay_payment_id,
+                razorpay_signature: razorpayResponse.razorpay_signature,
+                vendor_name: vendorOrder.vendor_name,
+                vendor_id: vendorOrder.vendor_id,
+                items: vendorOrder.items,
+                amount: amount
+            });
+
+            if (verifyData.success) {
+                this.completedPayments.push({
+                    vendor: vendorOrder.vendor_name,
+                    token: verifyData.token,
+                    amount: verifyData.amount,
+                    payment_id: verifyData.payment_id
+                });
+
+                this.removeVendorItemsFromCart(vendorOrder);
+
+                this.app.showNotification(`✅ Payment successful! Token: ${verifyData.token}`);
+                
+                this.app.showLoading(false);
+                
+                this.currentVendorIndex++;
+                setTimeout(() => this.processNextVendor(), 1000);
+
+            } else {
+                throw new Error('Payment verification failed');
+            }
+
+        } catch (error) {
+            this.app.showLoading(false);
+            console.error('Payment verification error:', error);
+            this.handlePaymentFailure(vendorOrder, 'Payment verification failed');
+        }
+    }
+
+    handlePaymentFailure(vendorOrder, reason) {
         this.failedPayments.push({
             vendor: vendorOrder.vendor_name,
             reason: reason
         });
 
-        this.showPaymentLoading(false);
-
-        // Ask user if they want to retry or skip
-        this.showPaymentFailedDialog(vendorOrder, reason);
-    }
-
-    // Show payment failed dialog with retry/skip options
-    showPaymentFailedDialog(vendorOrder, reason) {
-        const dialog = document.getElementById('payment-failed-dialog');
-        if (!dialog) return;
-
-        document.getElementById('failed-vendor-name').textContent = vendorOrder.vendor_name;
-        document.getElementById('failed-reason').textContent = reason;
-
-        dialog.classList.add('active');
-
-        // Retry button
-        document.getElementById('payment-retry-btn').onclick = () => {
-            dialog.classList.remove('active');
-            this.showPaymentModal(vendorOrder);
-        };
-
-        // Skip button
-        document.getElementById('payment-skip-btn').onclick = () => {
-            dialog.classList.remove('active');
+        if (confirm(`Payment to ${vendorOrder.vendor_name} failed: ${reason}\n\nWould you like to retry?`)) {
+            this.initiateRazorpayPayment(vendorOrder);
+        } else {
             this.currentVendorIndex++;
-            
             if (this.currentVendorIndex < this.vendorOrders.length) {
-                setTimeout(() => this.processNextVendor(), 500);
+                this.processNextVendor();
             } else {
                 this.completeCheckout();
-            }
-        };
-
-        // Cancel all button
-        document.getElementById('payment-cancel-all-btn').onclick = () => {
-            dialog.classList.remove('active');
-            this.completeCheckout();
-        };
-    }
-
-    // Show payment loading state
-    showPaymentLoading(show) {
-        const loadingEl = document.getElementById('payment-loading');
-        const formEl = document.getElementById('payment-form-content');
-        
-        if (loadingEl && formEl) {
-            if (show) {
-                loadingEl.style.display = 'flex';
-                formEl.style.display = 'none';
-            } else {
-                loadingEl.style.display = 'none';
-                formEl.style.display = 'block';
             }
         }
     }
 
-    // Show payment success notification
-    showPaymentSuccess(vendorName, token) {
-        this.app.showNotification(`✅ Payment successful for ${vendorName}! Token: ${token}`);
-    }
-
-    // Remove vendor items from cart
     removeVendorItemsFromCart(vendorOrder) {
         this.app.cart = this.app.cart.filter(item => 
             item.outlet_name !== vendorOrder.vendor_name
@@ -1026,33 +924,22 @@ class PaymentProcessor {
         this.app.updateCartDisplay();
     }
 
-    // Complete checkout process
     async completeCheckout() {
-        this.hidePaymentModal();
-
-        // Update wallet balance
         await this.app.updateWalletBalance();
-
-        // Show checkout summary
         this.showCheckoutSummary();
 
-        // If all payments successful, clear remaining cart
         if (this.failedPayments.length === 0 && this.app.cart.length === 0) {
-            this.app.closeCart();
-            
-            // Redirect to bills page after delay
             setTimeout(() => {
                 window.location.href = 'bills.html';
             }, 3000);
         }
     }
 
-    // Show checkout summary
     showCheckoutSummary() {
         const summaryHTML = `
             <div class="checkout-summary-modal active" id="checkout-summary-modal">
                 <div class="checkout-summary-content">
-                    <h2>Checkout Summary</h2>
+                    <h2>Payment Summary</h2>
                     
                     ${this.completedPayments.length > 0 ? `
                         <div class="summary-section success-section">
@@ -1062,6 +949,7 @@ class PaymentProcessor {
                                     <strong>${payment.vendor}</strong>
                                     <span>Token: ${payment.token}</span>
                                     <span>Amount: ₹${payment.amount.toFixed(2)}</span>
+                                    <span style="font-size: 0.85rem; color: #666;">Payment ID: ${payment.payment_id}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -1069,7 +957,7 @@ class PaymentProcessor {
                     
                     ${this.failedPayments.length > 0 ? `
                         <div class="summary-section failed-section">
-                            <h3>❌ Failed/Cancelled (${this.failedPayments.length})</h3>
+                            <h3>❌ Failed Payments (${this.failedPayments.length})</h3>
                             ${this.failedPayments.map(payment => `
                                 <div class="summary-item">
                                     <strong>${payment.vendor}</strong>
@@ -1086,38 +974,16 @@ class PaymentProcessor {
             </div>
         `;
 
-        // Remove existing summary if any
         const existing = document.getElementById('checkout-summary-modal');
         if (existing) existing.remove();
 
-        // Add new summary
         document.body.insertAdjacentHTML('beforeend', summaryHTML);
     }
-
-    // Generate unique transaction ID
-    generateTransactionId() {
-        const timestamp = Date.now();
-        const random = Math.random().toString(36).substring(2, 15);
-        return `TXN${timestamp}${random}`.toUpperCase();
-    }
-
-    // Cancel checkout process
-    cancelCheckout() {
-        if (confirm('Are you sure you want to cancel the checkout process?')) {
-            this.hidePaymentModal();
-            this.completeCheckout();
-        }
-    }
 }
 
-function processPayment() {
-    const upiId = document.getElementById('upi-id-input').value.trim();
-    app.paymentProcessor.processUPIPayment(upiId);
-}
-
-function cancelPayment() {
-    app.paymentProcessor.cancelCheckout();
-}
+// ============================================
+// GLOBAL FUNCTIONS
+// ============================================
 
 function closeCheckoutSummary() {
     const modal = document.getElementById('checkout-summary-modal');
@@ -1136,7 +1002,6 @@ function closeCart() {
     app.closeCart();
 }
 
-// Global functions for onclick handlers:
 function toggleBookmarkPopup() {
     app.toggleBookmarkPopup();
 }
@@ -1144,6 +1009,10 @@ function toggleBookmarkPopup() {
 function closeBookmarkPopup() {
     app.closeBookmarkPopup();
 }
+
+// ============================================
+// INITIALIZE APP
+// ============================================
 
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new CanTechApp();

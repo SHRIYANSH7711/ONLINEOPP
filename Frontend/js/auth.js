@@ -1,15 +1,12 @@
 // js/auth.js
 class AuthManager {
   constructor() {
-    this.user = null;
     this.loadUser();
   }
 
   loadUser() {
     const userData = localStorage.getItem('user');
-    if (userData) {
-      this.user = JSON.parse(userData);
-    }
+    this.user = userData ? JSON.parse(userData) : null;
   }
 
   getCurrentUser() {
@@ -21,24 +18,16 @@ class AuthManager {
   }
 
   async login(email, password) {
-    try {
-      const response = await api.login({ email, password });
-      this.user = response.user;
-      return response;
-    } catch (error) {
-      throw error;
-    }
+    const response = await api.login({ email, password });
+    this.user = response.user;
+    return response;
   }
 
- async signup(name, email, password, role) {
-    try {
-        const response = await api.signup({ name, email, password, role });
-        this.user = response.user;
-        return response;
-    } catch (error) {
-        throw error;
-    }
-}
+  async signup(name, email, password, role) {
+    const response = await api.signup({ name, email, password, role });
+    this.user = response.user;
+    return response;
+  }
 
   logout() {
     this.user = null;
@@ -54,32 +43,25 @@ class AuthManager {
     return true;
   }
 
- redirectIfAuthenticated() {
+  redirectIfAuthenticated() {
     if (this.isAuthenticated()) {
-        const user = this.getCurrentUser();
-        if (user.role === 'vendor') {
-            window.location.href = '/vendor-dashboard.html';
-        } else {
-            window.location.href = '/dashboard.html';
-        }
-        return true;
+      const path = this.user.role === 'vendor' ? '/vendor-dashboard.html' : '/dashboard.html';
+      window.location.href = path;
+      return true;
     }
     return false;
-}
+  }
 }
 
-// Create global instance
+// Global instance
 const auth = new AuthManager();
 
 // Check authentication on protected pages
 function checkAuth() {
   const protectedPages = ['dashboard.html', 'bills.html', 'wallet.html', 'notifications.html'];
-  const currentPage = window.location.pathname.split('/').pop();
-  
-  if (protectedPages.includes(currentPage)) {
+  if (protectedPages.includes(window.location.pathname.split('/').pop())) {
     auth.requireAuth();
   }
 }
 
-// Run auth check when DOM is loaded
 document.addEventListener('DOMContentLoaded', checkAuth);

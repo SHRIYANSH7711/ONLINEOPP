@@ -14,7 +14,7 @@ class APIService {
     this.token = null;
     localStorage.removeItem('authToken');
     localStorage.removeItem('user');
-    localStorage.removeItem('cart'); // Also clear cart
+    localStorage.removeItem('cart');
   }
 
   getHeaders() {
@@ -39,11 +39,9 @@ class APIService {
     try {
       const response = await fetch(url, config);
       
-      // Handle 401 Unauthorized - token expired or invalid
       if (response.status === 401) {
         this.removeToken();
         
-        // Don't redirect if we're already on login page
         if (!window.location.pathname.includes('login.html')) {
           window.location.href = '/login.html';
         }
@@ -51,7 +49,6 @@ class APIService {
         throw new Error('Session expired. Please login again.');
       }
 
-      // Handle 429 Too Many Requests
       if (response.status === 429) {
         throw new Error('Too many attempts. Please try again later.');
       }
@@ -66,7 +63,6 @@ class APIService {
     } catch (error) {
       console.error('API Error:', error);
       
-      // Network errors
       if (error.message === 'Failed to fetch') {
         throw new Error('Network error. Please check your connection.');
       }
@@ -115,7 +111,27 @@ class APIService {
     return this.request('/menu');
   }
 
-  // ==================== ORDER METHODS ====================
+  // ==================== REAL PAYMENT METHODS ====================
+
+  async createRazorpayOrder(orderData) {
+    return this.request('/payment/create-order', {
+      method: 'POST',
+      body: JSON.stringify(orderData)
+    });
+  }
+
+  async verifyPayment(paymentData) {
+    return this.request('/payment/verify', {
+      method: 'POST',
+      body: JSON.stringify(paymentData)
+    });
+  }
+
+  async getVendorUPI(vendorId) {
+    return this.request(`/vendor/${vendorId}/upi`);
+  }
+
+  // ==================== ORDER METHODS (FALLBACK) ====================
 
   async createOrder(orderData) {
     return this.request('/orders', {
@@ -164,25 +180,39 @@ class APIService {
       body: JSON.stringify({ is_available: isAvailable })
     });
   }
+
   async addMenuItem(itemData) {
-  return this.request('/menu', {
-    method: 'POST',
-    body: JSON.stringify(itemData)
-  });
-}
+    return this.request('/menu', {
+      method: 'POST',
+      body: JSON.stringify(itemData)
+    });
+  }
 
-async updateMenuItem(itemId, itemData) {
-  return this.request(`/menu/${itemId}`, {
-    method: 'PATCH',
-    body: JSON.stringify(itemData)
-  });
-}
+  async updateMenuItem(itemId, itemData) {
+    return this.request(`/menu/${itemId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(itemData)
+    });
+  }
 
-async deleteMenuItem(itemId) {
-  return this.request(`/menu/${itemId}`, {
-    method: 'DELETE'
-  });
-}
+  async deleteMenuItem(itemId) {
+    return this.request(`/menu/${itemId}`, {
+      method: 'DELETE'
+    });
+  }
+
+  // ==================== VENDOR WALLET METHODS ====================
+
+  async getVendorWallet() {
+    return this.request('/vendor/wallet');
+  }
+
+  async updateVendorUPI(upiId) {
+    return this.request('/vendor/upi', {
+      method: 'POST',
+      body: JSON.stringify({ upi_id: upiId })
+    });
+  }
 
   // ==================== NOTIFICATION METHODS ====================
 
