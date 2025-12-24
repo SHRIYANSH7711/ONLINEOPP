@@ -1052,6 +1052,10 @@
                 closeVendorPasswordModal();
             }
         };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVendorSettings();
+        });
         
         function showSection(section) {
             document.getElementById('orders-section').style.display = 'none';
@@ -1077,10 +1081,6 @@
                 loadVendorSettings();
             }
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadVendorSettings();
-        });
 
         async function refreshOrders() {
             await loadOrders();
@@ -1220,49 +1220,48 @@
         }
 
         function displayMenuItems(items) {
-    const container = document.getElementById('menu-items');
-    
-    if (items.length === 0) {
-        container.innerHTML = '<div class="empty-state"><p>No menu items yet. Click "Add New Item" to get started!</p></div>';
-        return;
-    }
-
-    container.innerHTML = items.map(item => {
-        const imageHTML = item.image_url 
-            ? `<img src="${item.image_url}" 
-                    class="vendor-menu-item-img" 
-                    alt="${item.name}"
-                    onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-               <div class="vendor-menu-item-img-placeholder" style="display: none;">🍽️</div>`
-            : `<div class="vendor-menu-item-img-placeholder">🍽️</div>`;
-        
-        return `
-            <div class="menu-card">
-                ${imageHTML}
-                <div class="menu-card-info">
-                    <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
-                    <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
-                    ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
-                </div>
-                <div class="menu-card-actions">
-                    <label class="switch">
-                        <input type="checkbox" 
-                               ${item.is_available ? 'checked' : ''} 
-                               onchange="toggleAvailability(${item.id}, this.checked)">
-                        <span class="switch-slider"></span>
-                    </label>
-                    <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
-                    <button class="btn-edit" onclick="editItem(${item.id})">
-                        <ion-icon name="create-outline"></ion-icon> Edit
-                    </button>
-                    <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name}')">
-                        <ion-icon name="trash-outline"></ion-icon> Delete
-                    </button>
-                </div>
-            </div>
-        `;
-    }).join('');
-}
+            const container = document.getElementById('menu-items');
+            
+            if (items.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>No menu items yet. Click "Add New Item" to get started!</p></div>';
+                return;
+            }
+            
+            container.innerHTML = items.map(item => {
+                const imageHTML = item.image_url 
+                ? `<img src="${item.image_url}" 
+                class="vendor-menu-item-img" 
+                alt="${item.name}"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                <div class="vendor-menu-item-img-placeholder" style="display: none;">🍽️</div>`
+                : `<div class="vendor-menu-item-img-placeholder">🍽️</div>`;
+                return `
+                <div class="menu-card">
+                    ${imageHTML}
+                    <div class="menu-card-info">
+                        <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
+                        <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
+                        ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
+                        </div>
+                        <div class="menu-card-actions">
+                            <label class="switch">
+                                <input type="checkbox" 
+                                ${item.is_available ? 'checked' : ''} 
+                                onchange="toggleAvailability(${item.id}, this.checked)">
+                                <span class="switch-slider"></span>
+                            </label>
+                            <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
+                            <button class="btn-edit" onclick="editItem(${item.id})">
+                                <ion-icon name="create-outline"></ion-icon> Edit
+                            </button>
+                            <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name}')">
+                                <ion-icon name="trash-outline"></ion-icon> Delete
+                            </button>
+                        </div>
+                    </div>
+                    `;
+                }).join('');
+            }
 
         function openAddItemModal() {
             editingItemId = null;
