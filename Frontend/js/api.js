@@ -235,6 +235,32 @@ class APIService {
   async getUnreadNotificationCount() {
     return this.request('/notifications/unread-count');
   }
+
+  async resendVerification() {
+    return this.request('/resend-verification', {
+      method: 'POST'
+    });
+  }
+  
+  async updateProfile(profileData) {
+    const response = await this.request('/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(profileData)
+    });
+    
+    if (response.user) {
+      localStorage.setItem('user', JSON.stringify(response.user));
+    }
+    
+    return response;
+  }
+  
+  async changePassword(passwordData) {
+    return this.request('/change-password', {
+      method: 'POST',
+      body: JSON.stringify(passwordData)
+    });
+  }
 }
 
 // Create global instance

@@ -274,6 +274,27 @@
                 font-size: 1.2rem;
             }
         }
+
+        .pwd-requirement {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.3rem 0;
+        font-size: 0.85rem;
+        color: #666;
+        }
+        
+        .pwd-requirement.met {
+        color: #00b894;
+        }
+        
+        .pwd-requirement.met .pwd-check {
+        color: #00b894;
+        }
+        
+        .pwd-check {
+        font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -391,13 +412,35 @@
                 </div>
                 <div class="form-group full-width">
                     <label for="new-password">New Password</label>
-                    <input type="password" id="new-password" minlength="6" required>
+                    <input type="password" id="new-password" minlength="10" required>
+                    
+                    <!-- Password Requirements Indicator -->
+                    <div style="margin-top: 0.5rem; padding: 1rem; background: #f8f9fa; border-radius: 8px;">
+                        <h4 style="font-size: 0.9rem; margin-bottom: 0.5rem;">Password Requirements:</h4>
+                        <div id="pwd-req-length" class="pwd-requirement">
+                            <span class="pwd-check">☐</span> At least 10 characters
+                        </div>
+                        <div id="pwd-req-uppercase" class="pwd-requirement">
+                            <span class="pwd-check">☐</span> One uppercase letter (A-Z)
+                        </div>
+                        <div id="pwd-req-lowercase" class="pwd-requirement">
+                            <span class="pwd-check">☐</span> One lowercase letter (a-z)
+                        </div>
+                        <div id="pwd-req-number" class="pwd-requirement">
+                            <span class="pwd-check">☐</span> One number (0-9)
+                        </div>
+                        <div id="pwd-req-special" class="pwd-requirement">
+                            <span class="pwd-check">☐</span> One special character (!@#$%^&*)
+                        </div>
+                    </div>
                 </div>
                 <div class="form-group full-width">
                     <label for="confirm-password">Confirm New Password</label>
-                    <input type="password" id="confirm-password" minlength="6" required>
+                    <input type="password" id="confirm-password" minlength="10" required>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">Change Password</button>
+                <button type="submit" class="btn-primary" id="change-pwd-btn" style="width: 100%;" disabled>
+                    Change Password
+                </button>
             </form>
         </div>
     </div>
@@ -506,7 +549,7 @@
             document.getElementById('password-form').reset();
         }
 
-        document.getElementById('password-form').addEventListener('submit', (e) => {
+        document.getElementById('password-form').addEventListener('submit', async (e) => {
             e.preventDefault();
             
             const currentPassword = document.getElementById('current-password').value;
@@ -517,15 +560,44 @@
                 alert('New passwords do not match');
                 return;
             }
-
-            if (newPassword.length < 6) {
-                alert('Password must be at least 6 characters long');
+            
+            if (newPassword.length < 10) {
+                alert('Password must be at least 10 characters long');
                 return;
             }
-
-            // Note: In production, this should call your backend API
-            alert('Password changed successfully!\n\nNote: Backend API integration required for actual password change.');
-            closePasswordModal();
+            
+            // Validate password strength
+            if (!/[A-Z]/.test(newPassword)) {
+                alert('Password must contain at least one uppercase letter');
+                return;
+            }
+            
+            if (!/[a-z]/.test(newPassword)) {
+                alert('Password must contain at least one lowercase letter');
+                return;
+            }
+            
+            if (!/[0-9]/.test(newPassword)) {
+                alert('Password must contain at least one number');
+                return;
+            }
+            
+            if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(newPassword)) {
+                alert('Password must contain at least one special character');
+                return;
+            }
+            
+            try {
+                const response = await api.changePassword({
+                    currentPassword: currentPassword,
+                    newPassword: newPassword
+                });
+                
+                alert('Password changed successfully!');
+                closePasswordModal();
+            } catch (error) {
+                alert('Failed to change password: ' + error.message);
+            }
         });
 
         function toggleDarkMode() {
@@ -572,6 +644,63 @@
                 closePasswordModal();
             }
         };
+
+        // Password validation for settings page
+        document.addEventListener('DOMContentLoaded', () => {
+            const newPasswordInput = document.getElementById('new-password');
+            const changeBtn = document.getElementById('change-pwd-btn');
+            
+            if (newPasswordInput && changeBtn) {
+                const requirements = {
+                    length: false,
+                    uppercase: false,
+                    lowercase: false,
+                    number: false,
+                    special: false
+                };
+                
+                newPasswordInput.addEventListener('input', function() {
+                    const password = this.value;
+                    
+                    // Check length
+                    requirements.length = password.length >= 10;
+                    updatePwdRequirement('pwd-req-length', requirements.length);
+                    
+                    // Check uppercase
+                    requirements.uppercase = /[A-Z]/.test(password);
+                    updatePwdRequirement('pwd-req-uppercase', requirements.uppercase);
+                    
+                    // Check lowercase
+                    requirements.lowercase = /[a-z]/.test(password);
+                    updatePwdRequirement('pwd-req-lowercase', requirements.lowercase);
+                    
+                    // Check number
+                    requirements.number = /[0-9]/.test(password);
+                    updatePwdRequirement('pwd-req-number', requirements.number);
+                    
+                    // Check special
+                    requirements.special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+                    updatePwdRequirement('pwd-req-special', requirements.special);
+                    
+                    // Enable/disable button
+                    const allMet = Object.values(requirements).every(val => val === true);
+                    changeBtn.disabled = !allMet;
+                });
+                
+                function updatePwdRequirement(elementId, isMet) {
+                    const element = document.getElementById(elementId);
+                    if (element) {
+                        if (isMet) {
+                            element.classList.add('met');
+                            element.querySelector('.pwd-check').textContent = '✓';
+                        } else {
+                            element.classList.remove('met');
+                            element.querySelector('.pwd-check').textContent = '☐';
+                        }
+                    }
+                }
+            }
+        });
     </script>
 </body>
 </html>

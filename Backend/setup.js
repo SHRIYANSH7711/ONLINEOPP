@@ -134,18 +134,39 @@ async function setupDatabase() {
           await client.query(`
             CREATE INDEX IF NOT EXISTS idx_vendor_transactions_vendor_id 
             ON vendor_transactions(vendor_id);
-            `);
-
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
-    `);
-    await client.query(`
-      CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(user_id, is_read);
-    `);
+          `);
+            
+          await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON notifications(user_id);
+          `);
+              
+          await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(user_id, is_read);
+          `);
 
     console.log('Tables created successfully!');
 
     console.log('✅ Vendor wallet and payment tables created!');
+
+    console.log('Adding email verification columns...');
+    
+    // Add email_verified column
+    await client.query(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false,
+      ADD COLUMN IF NOT EXISTS verification_token VARCHAR(100),
+      ADD COLUMN IF NOT EXISTS token_created_at TIMESTAMP DEFAULT NOW();
+    `);
+    
+    console.log('✅ Email verification columns added');
+    
+    // Create index for faster token lookups
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_verification_token 
+      ON users(verification_token);
+    `);
+    
+    console.log('✅ Verification token index created');
 
     // Check if vendors already exist
     const vendorCheck = await client.query('SELECT COUNT(*) FROM vendors');

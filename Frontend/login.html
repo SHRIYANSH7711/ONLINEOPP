@@ -26,7 +26,7 @@
             padding: 2rem;
             border-radius: 15px;
             box-shadow: 0 15px 35px rgba(0,0,0,0.1);
-            width: 400px;
+            width: 450px;
             max-width: 90vw;
         }
 
@@ -67,9 +67,60 @@
             background-color: white;
         }
 
-        input[type="email"]:focus, input[type="password"]:focus, input[type="text"]:focus, select:focus {
+        input:focus {
             outline: none;
             border-color: #0e6253;
+        }
+
+        /* Password Requirements Styles */
+        .password-requirements {
+            margin-top: 0.5rem;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #0e6253;
+        }
+
+        .password-requirements h4 {
+            font-size: 0.9rem;
+            color: #0e6253;
+            margin-bottom: 0.75rem;
+        }
+
+        .requirement {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.4rem 0;
+            font-size: 0.85rem;
+            color: #666;
+        }
+
+        .requirement-checkbox {
+            width: 18px;
+            height: 18px;
+            border: 2px solid #ddd;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s ease;
+        }
+
+        .requirement.met {
+            color: #00b894;
+        }
+
+        .requirement.met .requirement-checkbox {
+            background: #00b894;
+            border-color: #00b894;
+        }
+
+        .requirement.met .requirement-checkbox::after {
+            content: '✓';
+            color: white;
+            font-weight: bold;
+            font-size: 14px;
         }
 
         .btn {
@@ -85,7 +136,7 @@
             margin-bottom: 1rem;
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             background: #0a4d42;
         }
 
@@ -162,11 +213,6 @@
             display: block;
             animation: slideDown 0.3s ease;
         }
-
-        .key-icon {
-            display: inline-block;
-            margin-right: 5px;
-        }
     </style>
 </head>
 <body>
@@ -208,23 +254,47 @@
             
             <div class="form-group">
                 <label for="signupPassword">Password:</label>
-                <input type="password" id="signupPassword" name="password" required minlength="6">
+                <input type="password" id="signupPassword" name="password" required minlength="10">
+                
+                <!-- Password Requirements Checklist -->
+                <div class="password-requirements">
+                    <h4>Password Requirements:</h4>
+                    <div class="requirement" id="req-length">
+                        <div class="requirement-checkbox"></div>
+                        <span>At least 10 characters</span>
+                    </div>
+                    <div class="requirement" id="req-uppercase">
+                        <div class="requirement-checkbox"></div>
+                        <span>At least one uppercase letter (A-Z)</span>
+                    </div>
+                    <div class="requirement" id="req-lowercase">
+                        <div class="requirement-checkbox"></div>
+                        <span>At least one lowercase letter (a-z)</span>
+                    </div>
+                    <div class="requirement" id="req-number">
+                        <div class="requirement-checkbox"></div>
+                        <span>At least one number (0-9)</span>
+                    </div>
+                    <div class="requirement" id="req-special">
+                        <div class="requirement-checkbox"></div>
+                        <span>At least one special character (!@#$%^&*)</span>
+                    </div>
+                </div>
             </div>
 
             <div class="form-group">
                 <label for="signupRole">I am a:</label>
                 <select id="signupRole" name="role" required onchange="toggleVendorKeyField()">
                     <option value="">Select your role</option>
-                    <option value="customer">Customer</option>
-                    <option value="student">Student</option>
+                    <option value="student">Student/Teacher</option>
                     <option value="vendor">Vendor / Outlet Owner</option>
                 </select>
             </div>
 
-            <!-- Vendor Key Field (shown only when vendor is selected) -->
+            <!-- Vendor Key Field -->
             <div class="info-box" id="vendorInfoBox">
                 <strong>🔐 Vendor Registration:</strong><br>
-                Please enter the security key provided by Onlineपेटपूजा administration to register as a vendor.
+                Please enter the security key provided by Onlineपेटपूजा administration.
             </div>
 
             <div class="form-group vendor-key-field" id="vendorKeyField">
@@ -238,7 +308,7 @@
                 </small>
             </div>
             
-            <button type="submit" class="btn" id="signupBtn">Sign Up</button>
+            <button type="submit" class="btn" id="signupBtn" disabled>Sign Up</button>
             <div class="loading" id="signupLoading">Creating account...</div>
         </form>
 
@@ -252,6 +322,18 @@
     <script src="js/auth.js"></script>
     <script src="js/brand.js"></script>
     <script>
+        // Vendor security key
+        const VENDOR_SECRET_KEY = "CANTECH2024VENDOR";
+
+        // Password validation state
+        let passwordRequirementsMet = {
+            length: false,
+            uppercase: false,
+            lowercase: false,
+            number: false,
+            special: false
+        };
+
         // Check if user is already logged in
         if (auth.isAuthenticated()) {
             const user = auth.getCurrentUser();
@@ -268,9 +350,8 @@
         const switchToLogin = document.getElementById('switchToLogin');
         const messageDiv = document.getElementById('message');
         const signupMessageDiv = document.getElementById('signupMessage');
-
-        // VENDOR SECURITY KEY - Change this to your desired key
-        const VENDOR_SECRET_KEY = "CANTECH2024VENDOR";
+        const signupPasswordInput = document.getElementById('signupPassword');
+        const signupBtn = document.getElementById('signupBtn');
 
         // Switch between forms
         switchToSignup.addEventListener('click', (e) => {
@@ -300,7 +381,48 @@
             element.innerHTML = `<div class="${type}">${message}</div>`;
         }
 
-        // Toggle vendor key field based on role selection
+        // Password validation
+        signupPasswordInput.addEventListener('input', function() {
+            const password = this.value;
+            
+            // Check length (at least 10 characters)
+            passwordRequirementsMet.length = password.length >= 10;
+            updateRequirement('req-length', passwordRequirementsMet.length);
+            
+            // Check uppercase
+            passwordRequirementsMet.uppercase = /[A-Z]/.test(password);
+            updateRequirement('req-uppercase', passwordRequirementsMet.uppercase);
+            
+            // Check lowercase
+            passwordRequirementsMet.lowercase = /[a-z]/.test(password);
+            updateRequirement('req-lowercase', passwordRequirementsMet.lowercase);
+            
+            // Check number
+            passwordRequirementsMet.number = /[0-9]/.test(password);
+            updateRequirement('req-number', passwordRequirementsMet.number);
+            
+            // Check special character
+            passwordRequirementsMet.special = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password);
+            updateRequirement('req-special', passwordRequirementsMet.special);
+            
+            // Enable/disable signup button
+            updateSignupButton();
+        });
+
+        function updateRequirement(elementId, isMet) {
+            const element = document.getElementById(elementId);
+            if (isMet) {
+                element.classList.add('met');
+            } else {
+                element.classList.remove('met');
+            }
+        }
+
+        function updateSignupButton() {
+            const allMet = Object.values(passwordRequirementsMet).every(val => val === true);
+            signupBtn.disabled = !allMet;
+        }
+
         function toggleVendorKeyField() {
             const role = document.getElementById('signupRole').value;
             const vendorKeyField = document.getElementById('vendorKeyField');
@@ -367,6 +489,13 @@
                 return;
             }
 
+            // Check password requirements
+            const allMet = Object.values(passwordRequirementsMet).every(val => val === true);
+            if (!allMet) {
+                showMessage(signupMessageDiv, 'Please meet all password requirements');
+                return;
+            }
+
             // Vendor key validation
             if (role === 'vendor') {
                 if (!vendorKey) {
@@ -375,7 +504,7 @@
                 }
                 
                 if (vendorKey !== VENDOR_SECRET_KEY) {
-                    showMessage(signupMessageDiv, 'Invalid vendor security key. Please contact admin for the correct key.');
+                    showMessage(signupMessageDiv, 'Invalid vendor security key. Please contact admin.');
                     return;
                 }
             }

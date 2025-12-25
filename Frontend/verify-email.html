@@ -1,0 +1,230 @@
+<!--Frontend/verify-email.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Email - Onlineपेटपूजा</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Open Sans', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0e6253, #ffc107);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .verification-container {
+            background: white;
+            padding: 3rem 2rem;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .logo {
+            color: #0e6253;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            font-weight: bold;
+        }
+
+        .verification-icon {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+        }
+
+        .success {
+            color: #00b894;
+        }
+
+        .error {
+            color: #d63031;
+        }
+
+        .loading {
+            color: #0e6253;
+        }
+
+        h2 {
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        p {
+            color: #666;
+            margin-bottom: 2rem;
+            line-height: 1.6;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(14, 98, 83, 0.2);
+            border-top-color: #0e6253;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 2rem auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 12px 30px;
+            background: #0e6253;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            transition: background 0.3s;
+            margin: 0.5rem;
+        }
+
+        .btn:hover {
+            background: #0a4d42;
+        }
+
+        .btn-secondary {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e6b800;
+        }
+    </style>
+</head>
+<body>
+    <div class="verification-container">
+        <h1 class="logo">Onlineपेटपूजा</h1>
+        
+        <!-- Loading State -->
+        <div id="loading-state">
+            <div class="verification-icon loading">⏳</div>
+            <h2>Verifying Your Email...</h2>
+            <div class="spinner"></div>
+            <p>Please wait while we verify your email address.</p>
+        </div>
+
+        <!-- Success State -->
+        <div id="success-state" style="display: none;">
+            <div class="verification-icon success">✅</div>
+            <h2>Email Verified Successfully!</h2>
+            <p>Your email has been verified. You can now access all features of Onlineपेटपूजा.</p>
+            <a href="/dashboard.html" class="btn">Go to Dashboard</a>
+        </div>
+
+        <!-- Error State -->
+        <div id="error-state" style="display: none;">
+            <div class="verification-icon error">❌</div>
+            <h2>Verification Failed</h2>
+            <p id="error-message">The verification link is invalid or has expired.</p>
+            <a href="/login.html" class="btn btn-secondary">Back to Login</a>
+            <button onclick="resendVerification()" class="btn" id="resend-btn">Resend Verification Email</button>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script>
+        async function verifyEmail() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const token = urlParams.get('token');
+
+            if (!token) {
+                showError('No verification token provided.');
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/verify-email/${token}`);
+                const data = await response.json();
+
+                if (response.ok && data.success) {
+                    // Update user in localStorage if logged in
+                    const storedUser = localStorage.getItem('user');
+                    if (storedUser) {
+                        const user = JSON.parse(storedUser);
+                        user.email_verified = true;
+                        localStorage.setItem('user', JSON.stringify(user));
+                    }
+
+                    showSuccess();
+                } else {
+                    showError(data.error || 'Verification failed');
+                }
+            } catch (error) {
+                console.error('Verification error:', error);
+                showError('An error occurred during verification. Please try again.');
+            }
+        }
+
+        function showSuccess() {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('error-state').style.display = 'none';
+            document.getElementById('success-state').style.display = 'block';
+        }
+
+        function showError(message) {
+            document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('success-state').style.display = 'none';
+            document.getElementById('error-state').style.display = 'block';
+            document.getElementById('error-message').textContent = message;
+        }
+
+        async function resendVerification() {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+                alert('Please log in to resend verification email');
+                window.location.href = '/login.html';
+                return;
+            }
+
+            const resendBtn = document.getElementById('resend-btn');
+            resendBtn.disabled = true;
+            resendBtn.textContent = 'Sending...';
+
+            try {
+                const response = await fetch('/api/resend-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Verification email sent! Please check your inbox.');
+                } else {
+                    alert(data.error || 'Failed to resend verification email');
+                }
+            } catch (error) {
+                console.error('Resend error:', error);
+                alert('An error occurred. Please try again.');
+            } finally {
+                resendBtn.disabled = false;
+                resendBtn.textContent = 'Resend Verification Email';
+            }
+        }
+
+        // Start verification when page loads
+        document.addEventListener('DOMContentLoaded', verifyEmail);
+    </script>
+</body>
+</html>

@@ -9,6 +9,35 @@ const pool = require('./db');
 const { verifyToken, requireRole } = require('./middleware/auth');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
+
+const transporter = nodemailer.createTransport({
+  service: 'gmail', // or 'smtp.gmail.com'
+  auth: {
+    user: process.env.EMAIL_USER, // your email
+    pass: process.env.EMAIL_PASSWORD // your app password
+  }
+});
+
+// ==================== ENHANCED PASSWORD VALIDATION ====================
+function validatePasswordStrength(password) {
+  if (password.length < 10) {
+    return { valid: false, message: 'Password must be at least 10 characters' };
+  }
+  if (!/[A-Z]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one uppercase letter' };
+  }
+  if (!/[a-z]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one lowercase letter' };
+  }
+  if (!/[0-9]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one number' };
+  }
+  if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(password)) {
+    return { valid: false, message: 'Password must contain at least one special character' };
+  }
+  return { valid: true };
+}
 
 const app = express();
 const port = process.env.PORT || 3001;
@@ -81,8 +110,10 @@ app.post('/api/signup', async (req, res) => {
     return res.status(400).json({ error: 'Invalid email format' });
   }
 
-  if (!validatePassword(password)) {
-    return res.status(400).json({ error: 'Password must be at least 6 characters' });
+  // Enhanced password validation
+  const passwordValidation = validatePasswordStrength(password);
+  if (!passwordValidation.valid) {
+    return res.status(400).json({ error: passwordValidation.message });
   }
 
   const validRoles = ['customer', 'vendor', 'student'];
@@ -104,25 +135,75 @@ app.post('/api/signup', async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
     
+    // Generate verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    
     const result = await client.query(
-      'INSERT INTO users (name, email, password, role) VALUES ($1, $2, $3, $4) RETURNING id, name, email, role',
-      [sanitizedName, sanitizedEmail, hashedPassword, userRole]
+      `INSERT INTO users (name, email, password, role, email_verified, verification_token) 
+       VALUES ($1, $2, $3, $4, false, $5) 
+       RETURNING id, name, email, role, email_verified`,
+      [sanitizedName, sanitizedEmail, hashedPassword, userRole, verificationToken]
     );
 
     const user = result.rows[0];
 
     await client.query('COMMIT');
 
+    // Send verification email
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
+    
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: sanitizedEmail,
+        subject: 'Verify Your Onlineपेटपूजा Account',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #0e6253;">Welcome to Onlineपेटपूजा!</h2>
+            <p>Hi ${sanitizedName},</p>
+            <p>Thank you for creating an account. Please verify your email address to get started.</p>
+            <div style="margin: 30px 0; text-align: center;">
+              <a href="${verificationUrl}" 
+                 style="background: #0e6253; color: white; padding: 12px 30px; 
+                        text-decoration: none; border-radius: 8px; display: inline-block;">
+                Verify Email Address
+              </a>
+            </div>
+            <p style="color: #666; font-size: 14px;">
+              If the button doesn't work, copy and paste this link:<br>
+              <a href="${verificationUrl}">${verificationUrl}</a>
+            </p>
+            <p style="color: #666; font-size: 14px;">
+              This link will expire in 24 hours.
+            </p>
+            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+            <p style="color: #999; font-size: 12px;">
+              If you didn't create this account, please ignore this email.
+            </p>
+          </div>
+        `
+      });
+    } catch (emailError) {
+      console.error('Failed to send verification email:', emailError);
+      // Continue anyway - user can request resend
+    }
+
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role, email_verified: user.email_verified },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     res.status(201).json({ 
-      message: 'User created successfully', 
+      message: 'Account created! Please check your email to verify your account.', 
       token, 
-      user: { id: user.id, name: user.name, email: user.email, role: user.role }
+      user: { 
+        id: user.id, 
+        name: user.name, 
+        email: user.email, 
+        role: user.role,
+        email_verified: user.email_verified 
+      }
     });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -150,7 +231,7 @@ app.post('/api/login', async (req, res) => {
 
   try {
     const result = await pool.query(
-      'SELECT id, name, email, password, role, wallet_balance FROM users WHERE email = $1',
+      'SELECT id, name, email, password, role, wallet_balance, email_verified FROM users WHERE email = $1',
       [sanitizedEmail]
     );
 
@@ -168,7 +249,7 @@ app.post('/api/login', async (req, res) => {
     loginAttempts.delete(sanitizedEmail);
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
+      { id: user.id, email: user.email, role: user.role, email_verified: user.email_verified },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -181,12 +262,241 @@ app.post('/api/login', async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        wallet_balance: user.wallet_balance
+        wallet_balance: user.wallet_balance,
+        email_verified: user.email_verified
       }
     });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Login failed' });
+  }
+});
+
+// Verify email endpoint
+app.get('/api/verify-email/:token', async (req, res) => {
+  const { token } = req.params;
+  
+  try {
+    const result = await pool.query(
+      `UPDATE users 
+       SET email_verified = true, verification_token = NULL 
+       WHERE verification_token = $1 AND email_verified = false
+       RETURNING id, name, email, role, email_verified`,
+      [token]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'Invalid or expired verification link' 
+      });
+    }
+    
+    const user = result.rows[0];
+    
+    res.json({ 
+      success: true, 
+      message: 'Email verified successfully!',
+      user: user
+    });
+  } catch (error) {
+    console.error('Email verification error:', error);
+    res.status(500).json({ error: 'Failed to verify email' });
+  }
+});
+
+// Resend verification email
+app.post('/api/resend-verification', verifyToken, async (req, res) => {
+  try {
+    const user = await pool.query(
+      'SELECT id, name, email, email_verified FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    
+    if (user.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const userData = user.rows[0];
+    
+    if (userData.email_verified) {
+      return res.status(400).json({ error: 'Email already verified' });
+    }
+    
+    // Generate new verification token
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+    
+    await pool.query(
+      'UPDATE users SET verification_token = $1 WHERE id = $2',
+      [verificationToken, req.user.id]
+    );
+    
+    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
+    
+    await transporter.sendMail({
+      from: process.env.EMAIL_USER,
+      to: userData.email,
+      subject: 'Verify Your Onlineपेटपूजा Account',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #0e6253;">Verify Your Email</h2>
+          <p>Hi ${userData.name},</p>
+          <p>Click the button below to verify your email address:</p>
+          <div style="margin: 30px 0; text-align: center;">
+            <a href="${verificationUrl}" 
+               style="background: #0e6253; color: white; padding: 12px 30px; 
+                      text-decoration: none; border-radius: 8px; display: inline-block;">
+              Verify Email Address
+            </a>
+          </div>
+        </div>
+      `
+    });
+    
+    res.json({ success: true, message: 'Verification email sent!' });
+  } catch (error) {
+    console.error('Resend verification error:', error);
+    res.status(500).json({ error: 'Failed to resend verification email' });
+  }
+});
+
+app.patch('/api/profile', verifyToken, async (req, res) => {
+  const { name, email } = req.body;
+  
+  try {
+    const updates = [];
+    const values = [];
+    let paramCount = 1;
+
+    if (name !== undefined) {
+      updates.push(`name = $${paramCount}`);
+      values.push(sanitizeInput(name));
+      paramCount++;
+    }
+
+    if (email !== undefined) {
+      const sanitizedEmail = sanitizeInput(email.toLowerCase());
+      if (!validateEmail(sanitizedEmail)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+      
+      // Check if email already exists
+      const existing = await pool.query(
+        'SELECT id FROM users WHERE email = $1 AND id != $2',
+        [sanitizedEmail, req.user.id]
+      );
+      
+      if (existing.rows.length > 0) {
+        return res.status(400).json({ error: 'Email already in use' });
+      }
+      
+      updates.push(`email = $${paramCount}`);
+      values.push(sanitizedEmail);
+      paramCount++;
+      
+      // Reset email verification if email changed
+      updates.push(`email_verified = false`);
+      
+      // Generate new verification token
+      const verificationToken = crypto.randomBytes(32).toString('hex');
+      updates.push(`verification_token = $${paramCount}`);
+      values.push(verificationToken);
+      paramCount++;
+      
+      // Send verification email to new address
+      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
+      
+      try {
+        await transporter.sendMail({
+          from: process.env.EMAIL_USER,
+          to: sanitizedEmail,
+          subject: 'Verify Your New Email Address',
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #0e6253;">Verify Your New Email</h2>
+              <p>You've updated your email address. Please verify your new email:</p>
+              <div style="margin: 30px 0; text-align: center;">
+                <a href="${verificationUrl}" 
+                   style="background: #0e6253; color: white; padding: 12px 30px; 
+                          text-decoration: none; border-radius: 8px; display: inline-block;">
+                  Verify Email Address
+                </a>
+              </div>
+            </div>
+          `
+        });
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+      }
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    values.push(req.user.id);
+
+    const result = await pool.query(`
+      UPDATE users 
+      SET ${updates.join(', ')}
+      WHERE id = $${paramCount}
+      RETURNING id, name, email, role, email_verified, wallet_balance
+    `, values);
+
+    res.json({
+      success: true,
+      message: email !== undefined ? 
+        'Profile updated! Please verify your new email address.' : 
+        'Profile updated successfully',
+      user: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Change password (requires current password)
+app.post('/api/change-password', verifyToken, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current and new password are required' });
+  }
+  
+  // Validate new password strength
+  const passwordValidation = validatePasswordStrength(newPassword);
+  if (!passwordValidation.valid) {
+    return res.status(400).json({ error: passwordValidation.message });
+  }
+  
+  try {
+    const result = await pool.query(
+      'SELECT password FROM users WHERE id = $1',
+      [req.user.id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    const user = result.rows[0];
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    
+    if (!isValid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+    
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    
+    await pool.query(
+      'UPDATE users SET password = $1 WHERE id = $2',
+      [hashedPassword, req.user.id]
+    );
+    
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (error) {
+    console.error('Password change error:', error);
+    res.status(500).json({ error: 'Failed to change password' });
   }
 });
 
