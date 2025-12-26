@@ -72,6 +72,7 @@ body {
     background-color: var(--primaryColor);
     color: var(--whiteColor);
     z-index: 1000;
+    overflow-y: auto;
 }
 
 .logo {
@@ -902,6 +903,24 @@ body.menu-open {
     .sidebar {
         transform: translateX(-100%);
         transition: transform 0.3s ease;
+        height: 100vh;
+        max-height: 100vh;
+        overflow-y: auto; /* Ensure scrolling on mobile */
+        padding-bottom: 2rem; /* Add bottom padding for logout button */
+    }
+    
+    .sidebar-menus {
+        flex: 1;
+        overflow-y: auto; /* Make menu items scrollable */
+        margin-bottom: 1rem;
+    }
+    
+    .sidebar-logout {
+        position: sticky;
+        bottom: 0;
+        background: var(--primaryColor);
+        padding: 1rem 0;
+        margin-top: auto; /* Push to bottom */
     }
 
     .sidebar.active {

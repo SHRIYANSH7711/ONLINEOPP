@@ -213,6 +213,51 @@
             display: block;
             animation: slideDown 0.3s ease;
         }
+
+        .outlet-card {
+            padding: 1.5rem 1rem;
+            border: 3px solid #ddd;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .outlet-card:hover {
+            border-color: #0e6253;
+            transform: translateY(-3px);
+            box-shadow: 0 4px 12px rgba(14, 98, 83, 0.2);
+        }
+        
+        .outlet-card.selected {
+            border-color: #0e6253;
+            background: #e8f5e8;
+            border-width: 3px;
+        }
+        
+        .outlet-card.unavailable {
+            opacity: 0.5;
+            cursor: not-allowed;
+            border-color: #ccc;
+        }
+        
+        .outlet-icon {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .outlet-name {
+            font-weight: 600;
+            color: #333;
+            font-size: 0.9rem;
+        }
+        
+        .outlet-status {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.3rem;
+        }
     </style>
 </head>
 <body>
@@ -281,7 +326,6 @@
                     </div>
                 </div>
             </div>
-
             <div class="form-group">
                 <label for="signupRole">I am a:</label>
                 <select id="signupRole" name="role" required onchange="toggleVendorKeyField()">
@@ -289,6 +333,18 @@
                     <option value="student">Student/Teacher</option>
                     <option value="vendor">Vendor / Outlet Owner</option>
                 </select>
+            </div>
+            
+            <div class="form-group outlet-selection" id="outletSelection" style="display: none;">
+                <label>Select Your Outlet:</label>
+                <div style="background: #e8f4f8; border-left: 4px solid #3498db; padding: 1rem; margin-bottom: 1rem; border-radius: 5px; font-size: 14px;">
+                    <strong>🏪 Choose the outlet you'll manage</strong><br>
+                    You'll handle menu, orders, and wallet for this outlet.
+                </div>
+                <div id="outletGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 1rem; margin: 1rem 0;">
+                    <!-- Outlets load here -->
+                </div>
+                <input type="hidden" id="selectedOutletId" name="outletId">
             </div>
 
             <!-- Vendor Key Field -->
@@ -423,22 +479,78 @@
             signupBtn.disabled = !allMet;
         }
 
-        function toggleVendorKeyField() {
+        async function toggleVendorKeyField() {
             const role = document.getElementById('signupRole').value;
             const vendorKeyField = document.getElementById('vendorKeyField');
             const vendorInfoBox = document.getElementById('vendorInfoBox');
             const vendorKeyInput = document.getElementById('vendorKey');
+            const outletSelection = document.getElementById('outletSelection');
 
             if (role === 'vendor') {
                 vendorKeyField.style.display = 'block';
                 vendorInfoBox.classList.add('show');
                 vendorKeyInput.required = true;
+
+                outletSelection.style.display = 'block';
+                await loadOutlets();
+
             } else {
                 vendorKeyField.style.display = 'none';
                 vendorInfoBox.classList.remove('show');
                 vendorKeyInput.required = false;
                 vendorKeyInput.value = '';
+                outletSelection.style.display = 'none';
+                document.getElementById('selectedOutletId').value = '';
             }
+        }
+
+        // Load available outlets
+        async function loadOutlets() {
+            try {
+                const response = await fetch('/api/available-outlets');
+                const outlets = await response.json();
+                
+                const grid = document.getElementById('outletGrid');
+                grid.innerHTML = outlets.map(outlet => `
+                <div class="outlet-card ${outlet.available ? '' : 'unavailable'}" 
+                onclick="${outlet.available ? `selectOutlet(${outlet.id})` : ''}"
+                style="${outlet.available ? 'cursor: pointer;' : 'cursor: not-allowed;'}">
+                <div class="outlet-icon">${getOutletIcon(outlet.name)}</div>
+                <div class="outlet-name">${outlet.name}</div>
+                <div class="outlet-status">${outlet.available ? '✅ Available' : '❌ Taken'}</div>
+                </div>
+                `).join('');
+            } catch (error) {
+                console.error('Failed to load outlets:', error);
+                document.getElementById('outletGrid').innerHTML = 
+                '<p style="color: red;">Failed to load outlets. Please refresh.</p>';
+            }
+        }
+
+        function getOutletIcon(name) {
+            const icons = {
+                'Cafe 2004': '☕',
+                'Brio': '🍔',
+                'Nescafe': '☕',
+                'CHE Canteen': '🍱',
+                'Samocha': '🥟',
+                'Urban Vada Pav': '🌮',
+                'Amul': '☕'
+            };
+            return icons[name] || '🍽️';
+        }
+        
+        function selectOutlet(outletId) {
+            // Remove previous selection
+            document.querySelectorAll('.outlet-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            
+            // Mark selected
+            event.target.closest('.outlet-card').classList.add('selected');
+            
+            // Set hidden input
+            document.getElementById('selectedOutletId').value = outletId;
         }
 
         // Login form handler
@@ -482,6 +594,7 @@
             const password = document.getElementById('signupPassword').value;
             const role = document.getElementById('signupRole').value;
             const vendorKey = document.getElementById('vendorKey').value;
+            const outletId = document.getElementById('selectedOutletId').value;
             
             // Validation
             if (!role) {
@@ -498,12 +611,12 @@
 
             // Vendor key validation
             if (role === 'vendor') {
-                if (!vendorKey) {
-                    showMessage(signupMessageDiv, 'Please enter the vendor security key');
+                if (!outletId) {
+                    showMessage(signupMessageDiv, 'Please select an outlet to manage');
                     return;
                 }
                 
-                if (vendorKey !== VENDOR_SECRET_KEY) {
+                if (!vendorKey || vendorKey !== VENDOR_SECRET_KEY) {
                     showMessage(signupMessageDiv, 'Invalid vendor security key. Please contact admin.');
                     return;
                 }
@@ -517,7 +630,7 @@
             clearMessages();
 
             try {
-                await auth.signup(name, email, password, role);
+                await auth.signup(name, email, password, role, outletId);
                 showMessage(signupMessageDiv, 'Account created successfully! Redirecting...', 'success');
                 setTimeout(() => {
                     const user = auth.getCurrentUser();

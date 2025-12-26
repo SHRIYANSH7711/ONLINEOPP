@@ -261,6 +261,10 @@ class APIService {
       body: JSON.stringify(passwordData)
     });
   }
+
+  async getAvailableOutlets() {
+    return this.request('/available-outlets');
+  } 
 }
 
 // Create global instance

@@ -97,7 +97,7 @@ function sanitizeInput(str) {
 // ==================== AUTH ROUTES ====================
 
 app.post('/api/signup', async (req, res) => {
-  const { name, email, password, role } = req.body;
+  const { name, email, password, role, outletId } = req.body; // ← Add outletId
   
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'All fields are required' });
@@ -119,10 +119,23 @@ app.post('/api/signup', async (req, res) => {
   const validRoles = ['customer', 'vendor', 'student'];
   const userRole = role && validRoles.includes(role) ? role : 'customer';
 
+  // Validate vendor outlet selection
+  if (userRole === 'vendor') {
+    if (!outletId) {
+      return res.status(400).json({ error: 'Please select an outlet' });
+    }
+    
+    const validOutletIds = [1, 2, 3, 4, 5, 6]; // Your outlet IDs
+    if (!validOutletIds.includes(parseInt(outletId))) {
+      return res.status(400).json({ error: 'Invalid outlet selected' });
+    }
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
+    // Check for existing user
     const existingUser = await client.query(
       'SELECT id FROM users WHERE email = $1', 
       [sanitizedEmail]
@@ -134,18 +147,48 @@ app.post('/api/signup', async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    
-    // Generate verification token
     const verificationToken = crypto.randomBytes(32).toString('hex');
     
-    const result = await client.query(
+    // Create user
+    const userResult = await client.query(
       `INSERT INTO users (name, email, password, role, email_verified, verification_token) 
        VALUES ($1, $2, $3, $4, false, $5) 
        RETURNING id, name, email, role, email_verified`,
       [sanitizedName, sanitizedEmail, hashedPassword, userRole, verificationToken]
     );
 
-    const user = result.rows[0];
+    const user = userResult.rows[0];
+
+    // If vendor, link to outlet
+    if (userRole === 'vendor') {
+      // Check if outlet already has an owner
+      const existingOwner = await client.query(
+        'SELECT id, owner_user_id FROM vendors WHERE id = $1',
+        [outletId]
+      );
+      
+      if (existingOwner.rows.length > 0 && existingOwner.rows[0].owner_user_id) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ 
+          error: 'This outlet is already managed by another vendor. Please contact admin.' 
+        });
+      }
+
+      // Link user to vendor outlet
+      await client.query(
+        'UPDATE vendors SET owner_user_id = $1 WHERE id = $2',
+        [user.id, outletId]
+      );
+
+      // Get outlet name for response
+      const outletResult = await client.query(
+        'SELECT outlet_name FROM vendors WHERE id = $1',
+        [outletId]
+      );
+      
+      user.outlet_name = outletResult.rows[0].outlet_name;
+      user.outlet_id = outletId;
+    }
 
     await client.query('COMMIT');
 
@@ -154,55 +197,75 @@ app.post('/api/signup', async (req, res) => {
     
     try {
       await transporter.sendMail({
-        from: process.env.EMAIL_USER,
+        from: `"Onlineपेटपूजा" <${process.env.EMAIL_USER}>`,
         to: sanitizedEmail,
-        subject: 'Verify Your Onlineपेटपूजा Account',
+        subject: userRole === 'vendor' 
+          ? `Verify Your Vendor Account - ${user.outlet_name || 'Onlineपेटपूजा'}`
+          : 'Verify Your Onlineपेटपूजा Account',
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #0e6253;">Welcome to Onlineपेटपूजा!</h2>
-            <p>Hi ${sanitizedName},</p>
-            <p>Thank you for creating an account. Please verify your email address to get started.</p>
-            <div style="margin: 30px 0; text-align: center;">
-              <a href="${verificationUrl}" 
-                 style="background: #0e6253; color: white; padding: 12px 30px; 
-                        text-decoration: none; border-radius: 8px; display: inline-block;">
-                Verify Email Address
-              </a>
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+              <h2 style="color: #0e6253; text-align: center;">
+                Welcome to Onlineपेटपूजा${userRole === 'vendor' ? ' - Vendor' : ''}!
+              </h2>
+              <p>Hi <strong>${sanitizedName}</strong>,</p>
+              ${userRole === 'vendor' ? `
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                  <strong>🏪 Your Outlet: ${user.outlet_name}</strong><br>
+                  <span style="color: #666;">You're now the manager of this outlet</span>
+                </div>
+              ` : ''}
+              <p>Thank you for creating an account. Please verify your email address to get started.</p>
+              <div style="text-align: center; margin: 30px 0;">
+                <a href="${verificationUrl}" 
+                   style="background: #0e6253; color: white; padding: 15px 40px; 
+                          text-decoration: none; border-radius: 8px; display: inline-block;
+                          font-weight: bold; font-size: 16px;">
+                  Verify Email Address
+                </a>
+              </div>
+              <p style="color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
+                If the button doesn't work, copy and paste this link:<br>
+                <a href="${verificationUrl}" style="color: #0e6253; word-break: break-all;">${verificationUrl}</a>
+              </p>
+              <p style="color: #999; font-size: 12px; margin-top: 20px;">
+                This link will expire in 24 hours. If you didn't create this account, please ignore this email.
+              </p>
             </div>
-            <p style="color: #666; font-size: 14px;">
-              If the button doesn't work, copy and paste this link:<br>
-              <a href="${verificationUrl}">${verificationUrl}</a>
-            </p>
-            <p style="color: #666; font-size: 14px;">
-              This link will expire in 24 hours.
-            </p>
-            <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-            <p style="color: #999; font-size: 12px;">
-              If you didn't create this account, please ignore this email.
-            </p>
           </div>
         `
       });
+      console.log('✅ Verification email sent to:', sanitizedEmail);
     } catch (emailError) {
-      console.error('Failed to send verification email:', emailError);
+      console.error('❌ Failed to send verification email:', emailError.message);
       // Continue anyway - user can request resend
     }
 
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, email_verified: user.email_verified },
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role, 
+        email_verified: user.email_verified,
+        outlet_id: user.outlet_id // Include outlet in JWT
+      },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
     res.status(201).json({ 
-      message: 'Account created! Please check your email to verify your account.', 
+      message: userRole === 'vendor' 
+        ? `Vendor account created for ${user.outlet_name}! Please check your email to verify.`
+        : 'Account created! Please check your email to verify.', 
       token, 
       user: { 
         id: user.id, 
         name: user.name, 
         email: user.email, 
         role: user.role,
-        email_verified: user.email_verified 
+        email_verified: user.email_verified,
+        outlet_id: user.outlet_id,
+        outlet_name: user.outlet_name
       }
     });
   } catch (err) {
@@ -211,6 +274,29 @@ app.post('/api/signup', async (req, res) => {
     res.status(500).json({ error: 'Failed to create user' });
   } finally {
     client.release();
+  }
+});
+
+app.get('/api/available-outlets', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT id, outlet_name, owner_user_id
+      FROM vendors
+      WHERE is_active = true
+      ORDER BY outlet_name
+    `);
+    
+    // Mark which outlets are available (no owner)
+    const outlets = result.rows.map(outlet => ({
+      id: outlet.id,
+      name: outlet.outlet_name,
+      available: !outlet.owner_user_id
+    }));
+    
+    res.json(outlets);
+  } catch (error) {
+    console.error('Error fetching outlets:', error);
+    res.status(500).json({ error: 'Failed to fetch outlets' });
   }
 });
 
