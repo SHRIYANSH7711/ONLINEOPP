@@ -192,53 +192,50 @@ app.post('/api/signup', async (req, res) => {
 
     await client.query('COMMIT');
 
-    // Send verification email
-    const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
-    
+    // Send verification email    
     try {
-      await transporter.sendMail({
+      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
+      
+      const mailOptions = {
         from: `"Onlineपेटपूजा" <${process.env.EMAIL_USER}>`,
         to: sanitizedEmail,
-        subject: userRole === 'vendor' 
-          ? `Verify Your Vendor Account - ${user.outlet_name || 'Onlineपेटपूजा'}`
-          : 'Verify Your Onlineपेटपूजा Account',
+        subject: 'Verify Your Onlineपेटपूजा Account',
         html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-            <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
-              <h2 style="color: #0e6253; text-align: center;">
-                Welcome to Onlineपेटपूजा${userRole === 'vendor' ? ' - Vendor' : ''}!
-              </h2>
-              <p>Hi <strong>${sanitizedName}</strong>,</p>
-              ${userRole === 'vendor' ? `
-                <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                  <strong>🏪 Your Outlet: ${user.outlet_name}</strong><br>
-                  <span style="color: #666;">You're now the manager of this outlet</span>
-                </div>
-              ` : ''}
-              <p>Thank you for creating an account. Please verify your email address to get started.</p>
-              <div style="text-align: center; margin: 30px 0;">
-                <a href="${verificationUrl}" 
-                   style="background: #0e6253; color: white; padding: 15px 40px; 
-                          text-decoration: none; border-radius: 8px; display: inline-block;
-                          font-weight: bold; font-size: 16px;">
-                  Verify Email Address
-                </a>
-              </div>
-              <p style="color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
-                If the button doesn't work, copy and paste this link:<br>
-                <a href="${verificationUrl}" style="color: #0e6253; word-break: break-all;">${verificationUrl}</a>
-              </p>
-              <p style="color: #999; font-size: 12px; margin-top: 20px;">
-                This link will expire in 24 hours. If you didn't create this account, please ignore this email.
-              </p>
-            </div>
-          </div>
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
+        <div style="background: white; padding: 30px; border-radius: 10px;">
+        <h2 style="color: #0e6253; text-align: center;">Welcome to Onlineपेटपूजा!</h2>
+        <p>Hi <strong>${sanitizedName}</strong>,</p>
+        <p>Thank you for creating an account. Please verify your email address to get started.</p>
+        <div style="text-align: center; margin: 30px 0;">
+        <a href="${verificationUrl}" 
+        style="background: #0e6253; color: white; padding: 15px 40px; 
+        text-decoration: none; border-radius: 8px; display: inline-block;
+        font-weight: bold; font-size: 16px;">
+        Verify Email Address
+        </a>
+        </div>
+        <p style="color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
+        If the button doesn't work, copy and paste this link:<br>
+        <a href="${verificationUrl}" style="color: #0e6253;">${verificationUrl}</a>
+        </p>
+        <p style="color: #666; font-size: 12px; margin-top: 20px;">
+        This link will expire in 24 hours. If you didn't create this account, please ignore this email.
+        </p>
+        </div>
+        </div>
         `
-      });
-      console.log('✅ Verification email sent to:', sanitizedEmail);
+      };
+      
+      const info = await transporter.sendMail(mailOptions);
+      console.log('✅ Verification email sent:', info.messageId);
+      console.log('   To:', sanitizedEmail);
+    
     } catch (emailError) {
-      console.error('❌ Failed to send verification email:', emailError.message);
-      // Continue anyway - user can request resend
+      console.error('❌ Failed to send verification email:', emailError);
+      console.error('   Error details:', emailError.message);
+      
+      // Still allow signup to succeed, user can request resend later
+      // Don't throw error here
     }
 
     const token = jwt.sign(
