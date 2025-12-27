@@ -1,3 +1,4 @@
+// backend/add-amul.js
 require('dotenv').config();
 const pool = require('./db');
 
