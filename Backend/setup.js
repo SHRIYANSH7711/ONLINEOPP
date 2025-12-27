@@ -31,6 +31,28 @@ async function setupDatabase() {
     `);
 
     await client.query(`
+      CREATE TABLE IF NOT EXISTS vendor_users (
+      id SERIAL PRIMARY KEY,
+      vendor_id INTEGER REFERENCES vendors(id) ON DELETE CASCADE,
+      user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+      role VARCHAR(50) DEFAULT 'manager',
+      created_at TIMESTAMP DEFAULT NOW(),
+      UNIQUE(vendor_id, user_id)
+      );
+    `);
+      
+    console.log('✅ Vendor users junction table created');
+      
+    // Create index for faster lookups
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_vendor_users_vendor 
+      ON vendor_users(vendor_id);
+      
+      CREATE INDEX IF NOT EXISTS idx_vendor_users_user 
+      ON vendor_users(user_id);
+    `);
+
+    await client.query(`
       CREATE TABLE IF NOT EXISTS menu_items (
         id SERIAL PRIMARY KEY,
         vendor_id INTEGER REFERENCES vendors(id),

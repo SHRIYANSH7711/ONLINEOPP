@@ -107,6 +107,17 @@
         .btn-secondary:hover {
             background: #e6b800;
         }
+
+        .pending-verification {
+            text-align: center;
+            padding: 2rem;
+        }
+        
+        .pending-icon {
+            font-size: 5rem;
+            margin-bottom: 1rem;
+            color: #ffc107;
+        }
     </style>
 </head>
 <body>
@@ -119,6 +130,24 @@
             <h2>Verifying Your Email...</h2>
             <div class="spinner"></div>
             <p>Please wait while we verify your email address.</p>
+        </div>
+
+        <!-- Pending Verification State (NEW) -->
+        <div id="pending-state" style="display: none;">
+            <div class="pending-verification">
+                <div class="pending-icon">📧</div>
+                <h2>Email Verification Required</h2>
+                <p>Please check your email inbox and click the verification link to access your account.</p>
+                <p style="color: #666; margin-top: 1rem;">
+                    Can't find the email? Check your spam folder.
+                </p>
+                <button onclick="resendNow()" class="btn" style="margin-top: 2rem;">
+                    Resend Verification Email
+                </button>
+                <a href="/login.html" class="btn btn-secondary" style="display: inline-block; margin-top: 1rem;">
+                    Back to Login
+                </a>
+            </div>
         </div>
 
         <!-- Success State -->
@@ -144,6 +173,14 @@
         async function verifyEmail() {
             const urlParams = new URLSearchParams(window.location.search);
             const token = urlParams.get('token');
+            const status = urlParams.get('status');
+
+            // If status=pending, show pending state (user was redirected here)
+            if (status === 'pending') {
+                document.getElementById('loading-state').style.display = 'none';
+                document.getElementById('pending-state').style.display = 'block';
+                return;
+            }
 
             if (!token) {
                 showError('No verification token provided.');
@@ -175,28 +212,26 @@
 
         function showSuccess() {
             document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('pending-state').style.display = 'none';
             document.getElementById('error-state').style.display = 'none';
             document.getElementById('success-state').style.display = 'block';
         }
 
         function showError(message) {
             document.getElementById('loading-state').style.display = 'none';
+            document.getElementById('pending-state').style.display = 'none';
             document.getElementById('success-state').style.display = 'none';
             document.getElementById('error-state').style.display = 'block';
             document.getElementById('error-message').textContent = message;
         }
 
-        async function resendVerification() {
+        async function resendNow() {
             const token = localStorage.getItem('authToken');
             if (!token) {
-                alert('Please log in to resend verification email');
+                alert('Please log in first');
                 window.location.href = '/login.html';
                 return;
             }
-
-            const resendBtn = document.getElementById('resend-btn');
-            resendBtn.disabled = true;
-            resendBtn.textContent = 'Sending...';
 
             try {
                 const response = await fetch('/api/resend-verification', {
@@ -210,16 +245,13 @@
                 const data = await response.json();
 
                 if (response.ok) {
-                    alert('Verification email sent! Please check your inbox.');
+                    alert('✅ Verification email sent! Please check your inbox.');
                 } else {
-                    alert(data.error || 'Failed to resend verification email');
+                    alert('❌ ' + (data.error || 'Failed to resend email'));
                 }
             } catch (error) {
                 console.error('Resend error:', error);
                 alert('An error occurred. Please try again.');
-            } finally {
-                resendBtn.disabled = false;
-                resendBtn.textContent = 'Resend Verification Email';
             }
         }
 

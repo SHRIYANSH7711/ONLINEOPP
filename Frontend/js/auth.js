@@ -203,12 +203,20 @@ function checkAuth() {
   
   const currentPage = window.location.pathname.split('/').pop();
   
+  // Check if on a protected page
   if (protectedPages.includes(currentPage)) {
-    auth.requireAuth();
+    // First check authentication
+    if (!auth.isAuthenticated()) {
+      window.location.href = '/login.html';
+      return;
+    }
     
-    // Require email verification for non-settings pages
-    if (currentPage !== 'settings.html') {
-      auth.requireEmailVerification(currentPage);
+    // Then check email verification
+    const user = auth.getCurrentUser();
+    if (!user.email_verified) {
+      // Redirect to verification page with message
+      window.location.href = '/verify-email.html?status=pending';
+      return;
     }
   }
 }

@@ -9,15 +9,50 @@ const pool = require('./db');
 const { verifyToken, requireRole } = require('./middleware/auth');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // or 'smtp.gmail.com'
-  auth: {
-    user: process.env.EMAIL_USER, // your email
-    pass: process.env.EMAIL_PASSWORD // your app password
+
+const sgMail = require('@sendgrid/mail');
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+
+async function sendVerificationEmail(to, name, verificationToken) {
+  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
+  
+  const msg = {
+    to: to,
+    from: process.env.EMAIL_USER, 
+    subject: 'Verify Your Onlineपेटपूजा Account',
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+          <h2 style="color: #0e6253; text-align: center;">Welcome to Onlineपेटपूजा!</h2>
+          <p>Hi <strong>${name}</strong>,</p>
+          <p>Thank you for creating an account. Please verify your email address to get started.</p>
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${verificationUrl}" 
+               style="background: #0e6253; color: white; padding: 15px 40px; 
+                      text-decoration: none; border-radius: 8px; display: inline-block;
+                      font-weight: bold; font-size: 16px;">
+              Verify Email Address
+            </a>
+          </div>
+          <p style="color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
+            If the button doesn't work, copy and paste this link:<br>
+            <a href="${verificationUrl}" style="color: #0e6253; word-break: break-all;">${verificationUrl}</a>
+          </p>
+        </div>
+      </div>
+    `
+  };
+
+  try {
+    await sgMail.send(msg);
+    console.log('✅ Verification email sent via SendGrid to:', to);
+    return true;
+  } catch (error) {
+    console.error('❌ SendGrid error:', error.response ? error.response.body : error.message);
+    throw error;
   }
-});
+}
 
 // ==================== ENHANCED PASSWORD VALIDATION ====================
 function validatePasswordStrength(password) {
@@ -161,25 +196,25 @@ app.post('/api/signup', async (req, res) => {
 
     // If vendor, link to outlet
     if (userRole === 'vendor') {
-      // Check if outlet already has an owner
-      const existingOwner = await client.query(
-        'SELECT id, owner_user_id FROM vendors WHERE id = $1',
-        [outletId]
+      // Check if user already manages this outlet
+      const existingLink = await client.query(
+        'SELECT id FROM vendor_users WHERE vendor_id = $1 AND user_id = $2',
+        [outletId, user.id]
       );
       
-      if (existingOwner.rows.length > 0 && existingOwner.rows[0].owner_user_id) {
+      if (existingLink.rows.length > 0) {
         await client.query('ROLLBACK');
         return res.status(400).json({ 
-          error: 'This outlet is already managed by another vendor. Please contact admin.' 
+          error: 'You are already registered as a manager for this outlet.' 
         });
       }
-
-      // Link user to vendor outlet
+      
+      // Link user to vendor outlet (MULTIPLE MANAGERS ALLOWED)
       await client.query(
-        'UPDATE vendors SET owner_user_id = $1 WHERE id = $2',
-        [user.id, outletId]
+        'INSERT INTO vendor_users (vendor_id, user_id, role) VALUES ($1, $2, $3)',
+        [outletId, user.id, 'manager']
       );
-
+      
       // Get outlet name for response
       const outletResult = await client.query(
         'SELECT outlet_name FROM vendors WHERE id = $1',
@@ -194,48 +229,11 @@ app.post('/api/signup', async (req, res) => {
 
     // Send verification email    
     try {
-      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
-      
-      const mailOptions = {
-        from: `"Onlineपेटपूजा" <${process.env.EMAIL_USER}>`,
-        to: sanitizedEmail,
-        subject: 'Verify Your Onlineपेटपूजा Account',
-        html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background: #f5f5f5;">
-        <div style="background: white; padding: 30px; border-radius: 10px;">
-        <h2 style="color: #0e6253; text-align: center;">Welcome to Onlineपेटपूजा!</h2>
-        <p>Hi <strong>${sanitizedName}</strong>,</p>
-        <p>Thank you for creating an account. Please verify your email address to get started.</p>
-        <div style="text-align: center; margin: 30px 0;">
-        <a href="${verificationUrl}" 
-        style="background: #0e6253; color: white; padding: 15px 40px; 
-        text-decoration: none; border-radius: 8px; display: inline-block;
-        font-weight: bold; font-size: 16px;">
-        Verify Email Address
-        </a>
-        </div>
-        <p style="color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
-        If the button doesn't work, copy and paste this link:<br>
-        <a href="${verificationUrl}" style="color: #0e6253;">${verificationUrl}</a>
-        </p>
-        <p style="color: #666; font-size: 12px; margin-top: 20px;">
-        This link will expire in 24 hours. If you didn't create this account, please ignore this email.
-        </p>
-        </div>
-        </div>
-        `
-      };
-      
-      const info = await transporter.sendMail(mailOptions);
-      console.log('✅ Verification email sent:', info.messageId);
-      console.log('   To:', sanitizedEmail);
-    
+      await sendVerificationEmail(sanitizedEmail, sanitizedName, verificationToken);
+      console.log('✅ Verification email sent to:', sanitizedEmail);
     } catch (emailError) {
       console.error('❌ Failed to send verification email:', emailError);
-      console.error('   Error details:', emailError.message);
-      
-      // Still allow signup to succeed, user can request resend later
-      // Don't throw error here
+      // Continue anyway - user can request resend later
     }
 
     const token = jwt.sign(
@@ -277,17 +275,17 @@ app.post('/api/signup', async (req, res) => {
 app.get('/api/available-outlets', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT id, outlet_name, owner_user_id
+      SELECT id, outlet_name
       FROM vendors
       WHERE is_active = true
       ORDER BY outlet_name
     `);
     
-    // Mark which outlets are available (no owner)
+    // All outlets are always available (multiple managers allowed)
     const outlets = result.rows.map(outlet => ({
       id: outlet.id,
       name: outlet.outlet_name,
-      available: !outlet.owner_user_id
+      available: true // Always true now
     }));
     
     res.json(outlets);
@@ -415,25 +413,13 @@ app.post('/api/resend-verification', verifyToken, async (req, res) => {
     
     const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
     
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
-      to: userData.email,
-      subject: 'Verify Your Onlineपेटपूजा Account',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #0e6253;">Verify Your Email</h2>
-          <p>Hi ${userData.name},</p>
-          <p>Click the button below to verify your email address:</p>
-          <div style="margin: 30px 0; text-align: center;">
-            <a href="${verificationUrl}" 
-               style="background: #0e6253; color: white; padding: 12px 30px; 
-                      text-decoration: none; border-radius: 8px; display: inline-block;">
-              Verify Email Address
-            </a>
-          </div>
-        </div>
-      `
-    });
+    try {
+      await sendVerificationEmail(userData.email, userData.name, verificationToken);
+      res.json({ success: true, message: 'Verification email sent!' });
+    } catch (error) {
+      console.error('Resend verification error:', error);
+      res.status(500).json({ error: 'Failed to resend verification email' });
+    }
     
     res.json({ success: true, message: 'Verification email sent!' });
   } catch (error) {
@@ -605,7 +591,10 @@ app.get('/api/menu', async (req, res) => {
 app.get('/api/menu/vendor', verifyToken, requireRole('vendor'), async (req, res) => {
   try {
     const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1', 
+      `SELECT v.id, v.outlet_name 
+      FROM vendors v
+      JOIN vendor_users vu ON vu.vendor_id = v.id
+      WHERE vu.user_id = $1`, 
       [req.user.id]
     );
     
@@ -636,7 +625,10 @@ app.patch('/api/menu/:id/availability', verifyToken, requireRole('vendor'), asyn
 
   try {
     const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1',
+      `SELECT v.id, v.outlet_name 
+      FROM vendors v
+      JOIN vendor_users vu ON vu.vendor_id = v.id
+      WHERE vu.user_id = $1`, 
       [req.user.id]
     );
 
@@ -679,7 +671,10 @@ app.post('/api/menu', verifyToken, requireRole('vendor'), async (req, res) => {
 
   try {
     const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1',
+      `SELECT v.id, v.outlet_name 
+      FROM vendors v
+      JOIN vendor_users vu ON vu.vendor_id = v.id
+      WHERE vu.user_id = $1`, 
       [req.user.id]
     );
 
