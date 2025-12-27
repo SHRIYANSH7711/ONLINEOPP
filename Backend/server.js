@@ -15,7 +15,14 @@ const sgMail = require('@sendgrid/mail');
 sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 async function sendVerificationEmail(to, name, verificationToken) {
-  const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
+  const frontendUrl = process.env.FRONTEND_URL || 
+                     (process.env.NODE_ENV === 'production' 
+                       ? 'https://your-app.onrender.com'  
+                       : 'http://localhost:3001');
+  
+  const verificationUrl = `${frontendUrl}/verify-email.html?token=${verificationToken}`;
+  
+  console.log('🔗 Verification URL:', verificationUrl); // Debug log
   
   const msg = {
     to: to,
@@ -38,6 +45,9 @@ async function sendVerificationEmail(to, name, verificationToken) {
           <p style="color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
             If the button doesn't work, copy and paste this link:<br>
             <a href="${verificationUrl}" style="color: #0e6253; word-break: break-all;">${verificationUrl}</a>
+          </p>
+          <p style="color: #999; font-size: 12px; margin-top: 20px;">
+            If you didn't create this account, please ignore this email.
           </p>
         </div>
       </div>
