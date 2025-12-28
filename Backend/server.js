@@ -321,26 +321,42 @@ app.post('/api/login', async (req, res) => {
   }
 
   try {
+    // Check if user exists
     const result = await pool.query(
       'SELECT id, name, email, password, role, wallet_balance, email_verified FROM users WHERE email = $1',
       [sanitizedEmail]
     );
 
+    // User doesn't exist - specific error
     if (result.rows.length === 0) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ 
+        error: 'This email is not registered with us. Please sign up first.' 
+      });
     }
 
     const user = result.rows[0];
+    
+    // Check password
     const isValid = await bcrypt.compare(password, user.password);
     
+    // Wrong password - specific error
     if (!isValid) {
-      return res.status(401).json({ error: 'Invalid email or password' });
+      return res.status(401).json({ 
+        error: 'Incorrect password. Please try again or use "Forgot Password".' 
+      });
     }
 
+    // Clear rate limiting on successful login
     loginAttempts.delete(sanitizedEmail);
 
+    // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role, email_verified: user.email_verified },
+      { 
+        id: user.id, 
+        email: user.email, 
+        role: user.role, 
+        email_verified: user.email_verified 
+      },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -359,7 +375,7 @@ app.post('/api/login', async (req, res) => {
     });
   } catch (err) {
     console.error('Login error:', err);
-    res.status(500).json({ error: 'Login failed' });
+    res.status(500).json({ error: 'Login failed. Please try again later.' });
   }
 });
 
