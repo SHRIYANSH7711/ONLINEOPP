@@ -363,6 +363,158 @@ app.post('/api/login', async (req, res) => {
   }
 });
 
+// ==================== FORGOT PASSWORD ====================
+
+// Request password reset
+app.post('/api/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required' });
+  }
+
+  const sanitizedEmail = sanitizeInput(email.toLowerCase());
+  
+  if (!validateEmail(sanitizedEmail)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+
+  try {
+    // Check if user exists and email is verified
+    const userResult = await pool.query(
+      'SELECT id, name, email, email_verified FROM users WHERE email = $1',
+      [sanitizedEmail]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ 
+        error: 'This email is not registered with us.' 
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // Check if email is verified
+    if (!user.email_verified) {
+      return res.status(403).json({ 
+        error: 'Please verify your email first before resetting password.' 
+      });
+    }
+
+    // Generate password reset token (expires in 1 hour)
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const resetExpiry = new Date(Date.now() + 3600000); // 1 hour from now
+
+    // Store reset token
+    await pool.query(
+      'UPDATE users SET password_reset_token = $1, password_reset_expiry = $2 WHERE id = $3',
+      [resetToken, resetExpiry, user.id]
+    );
+
+    // Get frontend URL
+    const frontendUrl = process.env.FRONTEND_URL || 
+                       (process.env.NODE_ENV === 'production' 
+                         ? 'https://onlineopp.onrender.com'
+                         : 'http://localhost:3001');
+    
+    const resetUrl = `${frontendUrl}/reset-password.html?token=${resetToken}`;
+
+    // Send password reset email
+    const msg = {
+      to: sanitizedEmail,
+      from: process.env.EMAIL_USER,
+      subject: 'Reset Your Onlineपेटपूजा Password',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1);">
+            <h2 style="color: #0e6253; text-align: center;">Reset Your Password</h2>
+            <p>Hi <strong>${user.name}</strong>,</p>
+            <p>We received a request to reset your password. Click the button below to create a new password:</p>
+            <div style="text-align: center; margin: 30px 0;">
+              <a href="${resetUrl}" 
+                 style="background: #0e6253; color: white; padding: 15px 40px; 
+                        text-decoration: none; border-radius: 8px; display: inline-block;
+                        font-weight: bold; font-size: 16px;">
+                Reset Password
+              </a>
+            </div>
+            <p style="color: #666; font-size: 14px;">
+              This link will expire in 1 hour for security reasons.
+            </p>
+            <p style="color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
+              If the button doesn't work, copy and paste this link:<br>
+              <a href="${resetUrl}" style="color: #0e6253; word-break: break-all;">${resetUrl}</a>
+            </p>
+            <p style="color: #999; font-size: 12px; margin-top: 20px;">
+              If you didn't request a password reset, please ignore this email.
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    await sgMail.send(msg);
+
+    res.json({ 
+      success: true, 
+      message: 'Password reset link sent to your email!' 
+    });
+
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    res.status(500).json({ error: 'Failed to process password reset request' });
+  }
+});
+
+// Verify reset token and reset password
+app.post('/api/reset-password', async (req, res) => {
+  const { token, newPassword } = req.body;
+  
+  if (!token || !newPassword) {
+    return res.status(400).json({ error: 'Token and new password are required' });
+  }
+
+  // Validate password strength
+  const passwordValidation = validatePasswordStrength(newPassword);
+  if (!passwordValidation.valid) {
+    return res.status(400).json({ error: passwordValidation.message });
+  }
+
+  try {
+    // Find user with valid token
+    const userResult = await pool.query(
+      'SELECT id, email FROM users WHERE password_reset_token = $1 AND password_reset_expiry > NOW()',
+      [token]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(400).json({ 
+        error: 'Invalid or expired reset link. Please request a new one.' 
+      });
+    }
+
+    const user = userResult.rows[0];
+
+    // Hash new password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password and clear reset token
+    await pool.query(
+      'UPDATE users SET password = $1, password_reset_token = NULL, password_reset_expiry = NULL WHERE id = $2',
+      [hashedPassword, user.id]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'Password reset successfully! You can now login with your new password.' 
+    });
+
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 // Verify email endpoint
 app.get('/api/verify-email/:token', async (req, res) => {
   const { token } = req.params;
@@ -581,14 +733,84 @@ app.post('/api/change-password', verifyToken, async (req, res) => {
 
 // ==================== MENU ROUTES ====================
 
+// Get vendor live status
+app.get('/api/vendor/status', verifyToken, requireRole('vendor'), async (req, res) => {
+  try {
+    const vendorRes = await pool.query(
+      `SELECT v.id, v.outlet_name, v.is_online
+       FROM vendors v
+       JOIN vendor_users vu ON vu.vendor_id = v.id
+       WHERE vu.user_id = $1`,
+      [req.user.id]
+    );
+
+    if (vendorRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    res.json({
+      outlet_id: vendorRes.rows[0].id,
+      outlet_name: vendorRes.rows[0].outlet_name,
+      is_online: vendorRes.rows[0].is_online || false
+    });
+
+  } catch (error) {
+    console.error('Get vendor status error:', error);
+    res.status(500).json({ error: 'Failed to get vendor status' });
+  }
+});
+
+// Toggle vendor live status
+app.patch('/api/vendor/toggle-status', verifyToken, requireRole('vendor'), async (req, res) => {
+  try {
+    const vendorRes = await pool.query(
+      `SELECT v.id, v.outlet_name, v.is_online
+       FROM vendors v
+       JOIN vendor_users vu ON vu.vendor_id = v.id
+       WHERE vu.user_id = $1`,
+      [req.user.id]
+    );
+
+    if (vendorRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    const vendorId = vendorRes.rows[0].id;
+    const currentStatus = vendorRes.rows[0].is_online || false;
+    const newStatus = !currentStatus;
+
+    // Toggle status
+    const result = await pool.query(
+      'UPDATE vendors SET is_online = $1 WHERE id = $2 RETURNING id, outlet_name, is_online',
+      [newStatus, vendorId]
+    );
+
+    res.json({
+      success: true,
+      outlet_id: result.rows[0].id,
+      outlet_name: result.rows[0].outlet_name,
+      is_online: result.rows[0].is_online,
+      message: result.rows[0].is_online ? 
+        'Outlet is now LIVE and accepting orders!' : 
+        'Outlet is now OFFLINE'
+    });
+
+  } catch (error) {
+    console.error('Toggle vendor status error:', error);
+    res.status(500).json({ error: 'Failed to toggle vendor status' });
+  }
+});
+
 app.get('/api/menu', async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT m.id, m.name, m.price, m.description, m.image_url, m.category, m.is_available, 
-             v.outlet_name, v.id as vendor_id
+             v.outlet_name, v.id as vendor_id, v.is_online
       FROM menu_items m
       JOIN vendors v ON v.id = m.vendor_id
-      WHERE m.is_available = true AND v.is_active = true
+      WHERE m.is_available = true 
+        AND v.is_active = true 
+        AND (v.is_online = true OR v.is_online IS NULL)
       ORDER BY v.outlet_name, m.name
     `);
     res.json(result.rows);

@@ -348,6 +348,19 @@
             <h2>Welcome, <span id="vendor-name">Vendor</span>!</h2>
         </div>
 
+        <div style="background: white; padding: 1.5rem; border-radius: 15px; margin-bottom: 2rem; box-shadow: 0 3px 15px rgba(0,0,0,0.1);">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0; color: #0e6253;">Outlet Status</h3>
+                    <p id="status-text" style="margin: 0.5rem 0 0; color: #666;">Loading...</p>
+                </div>
+                <button id="toggle-status-btn" class="btn-primary" onclick="toggleOutletStatus()" style="padding: 12px 24px;">
+                    <ion-icon name="power-outline"></ion-icon>
+                    <span id="toggle-text">Toggle Status</span>
+                </button>
+            </div>
+        </div>
+
         <!-- Stats Section -->
         <div class="vendor-stats" id="stats-section">
             <div class="stat-card">
@@ -771,6 +784,41 @@
         let currentMenuItems = [];
         let currentOrderFilter = 'all';
         let editingItemId = null;
+
+        async function loadOutletStatus() {
+            try {
+                const status = await api.request('/vendor/status');
+                const statusText = document.getElementById('status-text');
+                const toggleBtn = document.getElementById('toggle-status-btn');
+                
+                if (status.is_online) {
+                    statusText.innerHTML = '🟢 <strong>LIVE</strong> - Accepting orders';
+                    statusText.style.color = '#00b894';
+                    toggleBtn.style.background = '#d63031';
+                    document.getElementById('toggle-text').textContent = 'Go Offline';
+                } else {
+                    statusText.innerHTML = '🔴 <strong>OFFLINE</strong> - Not accepting orders';
+                    statusText.style.color = '#d63031';
+                    toggleBtn.style.background = '#00b894';
+                    document.getElementById('toggle-text').textContent = 'Go Live';
+                }
+            } catch (error) {
+                console.error('Failed to load status:', error);
+            }
+        }
+        
+        async function toggleOutletStatus() {
+            try {
+                const response = await api.request('/vendor/toggle-status', { method: 'PATCH' });
+                alert(response.message);
+                await loadOutletStatus();
+            } catch (error) {
+                alert('Failed to toggle status: ' + error.message);
+            }
+        }
+
+// Load status on page load
+document.addEventListener('DOMContentLoaded', loadOutletStatus);
 
         document.addEventListener('DOMContentLoaded', async () => {
             const user = auth.getCurrentUser();

@@ -166,6 +166,22 @@ async function setupDatabase() {
             CREATE INDEX IF NOT EXISTS idx_notifications_is_read ON notifications(user_id, is_read);
           `);
 
+          // Add is_online column to vendors table
+          await client.query(`
+            ALTER TABLE vendors 
+            ADD COLUMN IF NOT EXISTS is_online BOOLEAN DEFAULT false
+          `);
+          
+          console.log('✅ Added is_online column to vendors table');
+          
+          // Create index for faster queries
+          await client.query(`
+            CREATE INDEX IF NOT EXISTS idx_vendors_online 
+            ON vendors(is_online);
+          `);
+          
+    console.log('✅ Created index on is_online column');
+
     console.log('Tables created successfully!');
 
     console.log('✅ Vendor wallet and payment tables created!');
