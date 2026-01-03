@@ -1100,6 +1100,44 @@ app.delete('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res)
   }
 });
 
+// ==================== CLOUDINARY CONFIGURATION ====================
+
+// Get Cloudinary config for frontend uploads
+app.get('/api/cloudinary-config', verifyToken, (req, res) => {
+  // Only send public config (never send API secret)
+  res.json({
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    uploadPreset: process.env.CLOUDINARY_UPLOAD_PRESET
+  });
+});
+
+// Validate Cloudinary URL (optional security check)
+function isValidCloudinaryUrl(url) {
+  if (!url) return false;
+  if (!url.startsWith('https://')) return false;
+  
+  const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+  if (cloudName) {
+    return url.includes(`res.cloudinary.com/${cloudName}/`);
+  }
+  
+  // Also allow other trusted sources
+  return url.includes('cloudinary.com') || 
+         url.includes('unsplash.com') || 
+         url.includes('pexels.com') || 
+         url.includes('pixabay.com');
+}
+
+// Update the image validation function
+function isValidImageUrl(url) {
+  if (!url) return false;
+  const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg)$/i;
+  const isHttps = url.startsWith('https://');
+  const hasImageExt = imageExtensions.test(url);
+  const isImageHost = /unsplash|cloudinary|imgur|pexels|pixabay|amazonaws|googleusercontent/i.test(url);
+  return isHttps && (hasImageExt || isImageHost);
+}
+
 // ==================== REAL UPI PAYMENT INTEGRATION ====================
 
 app.post('/api/payment/create-order', verifyToken, async (req, res) => {

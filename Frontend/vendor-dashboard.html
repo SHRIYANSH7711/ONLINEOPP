@@ -303,6 +303,15 @@
             margin-left: 10px;
         }
 
+        .upload-tab.active {
+            border-bottom-color: #0e6253 !important;
+            color: #0e6253 !important;
+        }
+        
+        .upload-tab:hover {
+            color: #0e6253;
+        }
+
         @media screen and (max-width: 768px) {
             .menu-card {
                 flex-direction: column;
@@ -527,27 +536,136 @@
                     <ion-icon name="person-outline"></ion-icon>
                     Profile Settings
                 </h3>
-                <div class="profile-photo-section" style="display: flex; align-items: center; gap: 2rem; margin-bottom: 2rem; flex-wrap: wrap;">
-                    <div class="profile-avatar-large" id="vendor-profile-avatar" style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #0e6253, #ffc107); display: flex; align-items: center; justify-content: center; font-size: 3rem; color: white; font-weight: bold;">
-                        V
+                
+                <!-- Profile Picture Section -->
+                 <div class="profile-photo-section" style="display: flex; align-items: flex-start; gap: 2rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                    <div style="text-align: center;">
+                        <div class="profile-avatar-large" id="vendor-profile-avatar" style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #0e6253, #ffc107); display: flex; align-items: center; justify-content: center; font-size: 3rem; color: white; font-weight: bold; margin-bottom: 1rem; overflow: hidden; position: relative;">
+                            V
+                        </div>
+                        <div id="vendor-profile-image-preview" style="margin-top: 1rem;">
+                            <!-- Preview will appear here -->
+                        </div>
+                        <!-- Progress Bar -->
+                        <div id="upload-progress" style="display: none; margin-top: 1rem;">
+                            <div style="background: #e0e0e0; border-radius: 10px; height: 8px; overflow: hidden;">
+                                <div id="progress-bar" style="background: linear-gradient(90deg, #0e6253, #00b894); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                            <p id="progress-text" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Uploading...</p>
+                        </div>
                     </div>
-                    <div class="profile-photo-actions" style="display: flex; flex-direction: column; gap: 1rem;">
-                        <p><strong>Profile Photo</strong></p>
-                        <p style="color: #666; font-size: 0.9rem;">Upload a photo or use your initials</p>
-                        <input type="file" id="vendor-photo-upload" accept="image/*" style="display: none;">
-                        <button class="btn-secondary" onclick="document.getElementById('vendor-photo-upload').click()" style="background: white; color: #0e6253; padding: 10px 20px; border: 2px solid #0e6253; border-radius: 8px; cursor: pointer; font-weight: 600;">
-                            Upload Photo
-                        </button>
+                    
+                    <div style="flex: 1; min-width: 300px;">
+                        <h4 style="margin: 0 0 1rem 0;">Outlet Profile Image</h4>
+                        <p style="color: #666; font-size: 0.9rem; margin-bottom: 1.5rem;">
+                            This image will appear in the student/teacher dashboard when browsing outlets.
+                        </p>
+                        
+                        <!-- Upload Method Tabs -->
+                        <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 2px solid #e0e0e0;">
+                            <button 
+                            id="upload-tab" 
+                            class="upload-tab active"
+                            onclick="switchUploadTab('upload')"
+                            style="flex: 1; padding: 12px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #0e6253; font-weight: 600; color: #0e6253; transition: all 0.3s;"
+                            >
+                            📱 Upload from Device
+                            </button>
+                            <button 
+                            id="url-tab" 
+                            class="upload-tab"
+                            onclick="switchUploadTab('url')"
+                            style="flex: 1; padding: 12px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 600; color: #666; transition: all 0.3s;"
+                            >
+                            🔗 Use URL
+                            </button>
+                        </div>
+                        
+                        <!-- Upload from Device Section -->
+                         <div id="upload-section" style="display: block;">
+                            <button 
+                            onclick="selectProfileImageFile()" 
+                            class="btn-primary"
+                            style="width: 100%; padding: 15px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                            >
+                            <ion-icon name="cloud-upload-outline"></ion-icon>
+                            Choose Image from Device
+                            </button>
+                            
+                            <div style="background: #e8f5e8; padding: 1rem; border-radius: 8px; border-left: 4px solid #00b894; margin-bottom: 1rem; font-size: 0.9rem;">
+                                <strong>📸 Upload Guidelines:</strong>
+                                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                                    <li>Max file size: 5MB</li>
+                                    <li>Formats: JPG, PNG, WebP, GIF</li>
+                                    <li>Recommended: 400x400px square image</li>
+                                    <li>Image will be auto-optimized</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <!-- URL Input Section -->
+                        <div id="url-section" style="display: none;">
+                            <div class="form-group" style="margin-bottom: 1rem;">
+                                <label for="vendor-profile-image-url">Image URL</label>
+                                <input 
+                                type="url" 
+                                id="vendor-profile-image-url" 
+                                placeholder="https://images.unsplash.com/photo..."
+                                style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;"
+                                oninput="previewVendorProfileImage()"
+                                >
+                                <small style="color: #666; display: block; margin-top: 5px;">
+                                    Free images from 
+                                    <a href="https://unsplash.com" target="_blank" style="color: #0e6253;">Unsplash</a>,
+                                    <a href="https://www.pexels.com" target="_blank" style="color: #0e6253;">Pexels</a>, or
+                                    <a href="https://pixabay.com" target="_blank" style="color: #0e6253;">Pixabay</a>
+                                </small>
+                            </div>
+                            
+                            <div style="background: #fff3cd; padding: 1rem; border-radius: 8px; border-left: 4px solid #ffc107; margin-bottom: 1rem; font-size: 0.9rem;">
+                                <strong>🔗 URL Tips:</strong>
+                                <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                                    <li>Use square images (1:1 ratio) for best results</li>
+                                    <li>Only HTTPS URLs are accepted</li>
+                                    <li>Right-click image → "Copy image address"</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                            <button 
+                            onclick="saveVendorProfileImage()" 
+                            class="btn-primary"
+                            id="save-image-btn"
+                            style="flex: 1; padding: 12px 24px;"
+                            >
+                            <ion-icon name="save-outline"></ion-icon>
+                            Save Profile Image
+                            </button>
+                            
+                            <button 
+                            onclick="removeVendorProfileImage()" 
+                            class="btn-secondary"
+                            style="padding: 12px 24px; background: white; color: #dc3545; border: 2px solid #dc3545;"
+                            >
+                            <ion-icon name="trash-outline"></ion-icon>
+                            Remove
+                            </button>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="profile-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
-                    <div class="form-group" style="margin-bottom: 1.5rem;">
-                        <label for="vendor-name" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Full Name</label>
+                <hr style="margin: 2rem 0; border: none; border-top: 1px solid #eee;">
+                
+                <!-- Existing Name/Email Fields -->
+                 <div class="profile-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
+                    <div class="form-group">
+                        <label for="vendor-name">Full Name</label>
                         <input type="text" id="vendor-name" placeholder="Enter your name" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
                     </div>
-                    <div class="form-group" style="margin-bottom: 1.5rem;">
-                        <label for="vendor-email" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Email</label>
+                    <div class="form-group">
+                        <label for="vendor-email">Email</label>
                         <input type="email" id="vendor-email" placeholder="Enter your email" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
                     </div>
                 </div>
@@ -709,73 +827,129 @@
 
     <!-- Add/Edit Item Modal -->
     <div id="item-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2 id="modal-title">Add New Item</h2>
-                <span class="close-modal" onclick="closeItemModal()">&times;</span>
-            </div>
-            <form id="item-form">
-                <div class="form-group">
-                    <label for="item-name">Item Name *</label>
-                    <input type="text" id="item-name" required>
+    <div class="modal-content">
+        <div class="modal-header">
+            <h2 id="modal-title">Add New Item</h2>
+            <span class="close-modal" onclick="closeItemModal()">&times;</span>
+        </div>
+        
+        <form id="item-form">
+            <!-- Image Upload Section -->
+            <div class="form-group">
+                <label>Item Image</label>
+                
+                <!-- Image Preview -->
+                <div id="item-image-preview-container" style="margin-bottom: 1rem; text-align: center;">
+                    <div id="item-image-preview" style="width: 200px; height: 200px; margin: 0 auto; border-radius: 8px; overflow: hidden; background: #f0f0f0; display: flex; align-items: center; justify-content: center; border: 2px solid #ddd;">
+                        <span style="font-size: 4rem; color: #ccc;">🍽️</span>
+                    </div>
                 </div>
-                <form id="item-form">
-                    <div class="form-group">
-                        <label for="item-name">Item Name *</label>
-                        <input type="text" id="item-name" required>
-                    </div>
-                    
-                    <div class="form-group">
-                        <label for="item-price">Price (₹) *</label>
-                        <input type="number" id="item-price" step="0.01" min="0.01" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="item-category">Category</label>
-                        <select id="item-category">
-                            <option value="">Select category (optional)</option>
-                            <option value="Breakfast">Breakfast</option>
-                            <option value="Main Course">Main Course</option>
-                            <option value="Snacks">Snacks</option>
-                            <option value="Beverages">Beverages</option>
-                            <option value="Street Food">Street Food</option>
-                            <option value="Chinese">Chinese</option>
-                            <option value="South Indian">South Indian</option>
-                            <option value="North Indian">North Indian</option>
-                            <option value="Rice">Rice</option>
-                            <option value="Bread">Bread</option>
-                            <option value="Dessert">Dessert</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="item-image">Image URL (Optional)</label>
-                        <input type="url" id="item-image" placeholder="https://example.com/image.jpg">
-                        <small style="color: #666; display: block; margin-top: 5px;">
-                            Paste a direct image URL (JPG, PNG, WebP). Try: 
-                            <a href="https://unsplash.com" target="_blank" style="color: #0e6253;">Unsplash</a> or 
-                            <a href="https://www.pexels.com" target="_blank" style="color: #0e6253;">Pexels</a>
-                        </small>
-                    </div>
-                    <div class="form-group" id="image-preview-container" style="display: none;">
-                        <label>Image Preview</label>
-                        <div style="max-width: 200px; margin-top: 10px;">
-                            <img id="image-preview" style="width: 100%; border-radius: 8px; border: 2px solid #ddd;">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="item-description">Description</label>
-                        <textarea id="item-description" placeholder="Describe your item..."></textarea>
-                    </div>
-                    <button type="submit" class="btn-primary" style="width: 100%;">
-                        <ion-icon name="checkmark-circle-outline"></ion-icon>
-                        <span id="submit-btn-text">Add Item</span>
+                
+                <!-- Upload Method Tabs -->
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; border-bottom: 2px solid #e0e0e0;">
+                    <button 
+                        type="button"
+                        id="item-upload-tab" 
+                        class="upload-tab active"
+                        onclick="switchItemUploadTab('upload')"
+                        style="flex: 1; padding: 10px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #0e6253; font-weight: 600; color: #0e6253;"
+                    >
+                        📱 Upload
                     </button>
-                </form>
+                    <button 
+                        type="button"
+                        id="item-url-tab" 
+                        class="upload-tab"
+                        onclick="switchItemUploadTab('url')"
+                        style="flex: 1; padding: 10px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 600; color: #666;"
+                    >
+                        🔗 URL
+                    </button>
+                </div>
+                
+                <!-- Upload Section -->
+                <div id="item-upload-section" style="display: block;">
+                    <button 
+                        type="button"
+                        onclick="selectItemImageFile()" 
+                        class="btn-primary"
+                        style="width: 100%; padding: 12px; margin-bottom: 0.5rem;"
+                    >
+                        <ion-icon name="cloud-upload-outline"></ion-icon>
+                        Choose Image from Device
+                    </button>
+                    <small style="display: block; color: #666; text-align: center;">Max 5MB • JPG, PNG, WebP, GIF</small>
+                </div>
+                
+                <!-- URL Section -->
+                <div id="item-url-section" style="display: none;">
+                    <input 
+                        type="url" 
+                        id="item-image-url" 
+                        placeholder="https://images.unsplash.com/photo..."
+                        style="width: 100%; padding: 10px; border: 2px solid #ddd; border-radius: 5px;"
+                        oninput="previewItemImage()"
+                    >
+                    <small style="display: block; color: #666; margin-top: 0.5rem;">
+                        Get free images from <a href="https://unsplash.com/s/photos/food" target="_blank">Unsplash</a>
+                    </small>
+                </div>
+                
+                <!-- Progress Bar -->
+                <div id="item-upload-progress" style="display: none; margin-top: 1rem;">
+                    <div style="background: #e0e0e0; border-radius: 10px; height: 6px; overflow: hidden;">
+                        <div id="item-progress-bar" style="background: #0e6253; height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <p id="item-progress-text" style="margin-top: 0.5rem; font-size: 0.85rem; color: #666; text-align: center;">Uploading...</p>
+                </div>
             </div>
+            
+            <div class="form-group">
+                <label for="item-name">Item Name *</label>
+                <input type="text" id="item-name" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="item-price">Price (₹) *</label>
+                <input type="number" id="item-price" step="0.01" min="0.01" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="item-category">Category</label>
+                <select id="item-category">
+                    <option value="">Select category (optional)</option>
+                    <option value="Breakfast">Breakfast</option>
+                    <option value="Main Course">Main Course</option>
+                    <option value="Snacks">Snacks</option>
+                    <option value="Beverages">Beverages</option>
+                    <option value="Street Food">Street Food</option>
+                    <option value="Chinese">Chinese</option>
+                    <option value="South Indian">South Indian</option>
+                    <option value="North Indian">North Indian</option>
+                    <option value="Rice">Rice</option>
+                    <option value="Bread">Bread</option>
+                    <option value="Dessert">Dessert</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="item-description">Description</label>
+                <textarea id="item-description" placeholder="Describe your item..."></textarea>
+            </div>
+            
+            <button type="submit" class="btn-primary" style="width: 100%;">
+                <ion-icon name="checkmark-circle-outline"></ion-icon>
+                <span id="submit-btn-text">Add Item</span>
+            </button>
+        </form>
+    </div>
 
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
     <script src="js/api.js"></script>
     <script src="js/auth.js"></script>
+    <script src="js/image-loader.js"></script>
+    <script src="js/image-upload.js"></script>
     <script src="js/brand.js"></script>
     <script>
         let currentOrders = [];
@@ -784,6 +958,10 @@
         let currentMenuItems = [];
         let currentOrderFilter = 'all';
         let editingItemId = null;
+        let currentProfileImageUrl = null;
+        let currentUploadMethod = 'upload';
+        let currentItemImageUrl = null;
+        let currentItemUploadMethod = 'upload';
 
         async function loadOutletStatus() {
             try {
@@ -816,9 +994,9 @@
                 alert('Failed to toggle status: ' + error.message);
             }
         }
-
-// Load status on page load
-document.addEventListener('DOMContentLoaded', loadOutletStatus);
+        
+        // Load status on page load
+        document.addEventListener('DOMContentLoaded', loadOutletStatus);
 
         document.addEventListener('DOMContentLoaded', async () => {
             const user = auth.getCurrentUser();
@@ -1325,16 +1503,27 @@ document.addEventListener('DOMContentLoaded', loadOutletStatus);
         function editItem(itemId) {
             const item = currentMenuItems.find(i => i.id === itemId);
             if (!item) return;
+            
             editingItemId = itemId;
+            currentItemImageUrl = item.image_url;
+            
             document.getElementById('modal-title').textContent = 'Edit Item';
             document.getElementById('submit-btn-text').textContent = 'Update Item';
             document.getElementById('item-name').value = item.name;
             document.getElementById('item-price').value = item.price;
             document.getElementById('item-category').value = item.category || '';
             document.getElementById('item-description').value = item.description || '';
-            document.getElementById('item-image').value = item.image_url || '';  
-            // Trigger image preview 
-            document.getElementById('item-image').dispatchEvent(new Event('input'));
+            
+            // Set image
+            if (item.image_url) {
+                document.getElementById('item-image-url').value = item.image_url;
+                displayItemImagePreview(item.image_url);
+                switchItemUploadTab('url');
+            } else {
+                resetItemImagePreview();
+                switchItemUploadTab('upload');
+            }
+            
             document.getElementById('item-modal').classList.add('active');
         }
 
@@ -1360,7 +1549,10 @@ document.addEventListener('DOMContentLoaded', loadOutletStatus);
         function closeItemModal() {
             document.getElementById('item-modal').classList.remove('active');
             document.getElementById('item-form').reset();
+            document.getElementById('item-image-url').value = '';
+            resetItemImagePreview();
             editingItemId = null;
+            currentItemImageUrl = null;
         }
 
         document.getElementById('item-form').addEventListener('submit', async (e) => {
@@ -1371,7 +1563,7 @@ document.addEventListener('DOMContentLoaded', loadOutletStatus);
                 price: parseFloat(document.getElementById('item-price').value),
                 category: document.getElementById('item-category').value || null,
                 description: document.getElementById('item-description').value || null,
-                image_url: document.getElementById('item-image').value.trim() || null
+                image_url: currentItemImageUrl || null
             };
             
             try {
@@ -1389,6 +1581,7 @@ document.addEventListener('DOMContentLoaded', loadOutletStatus);
                 showNotification(error.message, 'error');
             }
         });
+
         async function deleteItem(itemId, itemName) {
             if (!confirm(`Are you sure you want to delete "${itemName}"?`)) {
                 return;
@@ -1467,6 +1660,348 @@ document.addEventListener('DOMContentLoaded', loadOutletStatus);
             if (event.target === modal) {
                 closeItemModal();
             }
+        }
+
+        // ==================== PROFILE IMAGE UPLOAD FUNCTIONS ====================
+
+        // Switch between upload and URL tabs
+        function switchUploadTab(method) {
+            currentUploadMethod = method;
+            const uploadTab = document.getElementById('upload-tab');
+            const urlTab = document.getElementById('url-tab');
+            const uploadSection = document.getElementById('upload-section');
+            const urlSection = document.getElementById('url-section');
+            
+            if (method === 'upload') {
+                uploadTab.classList.add('active');
+                urlTab.classList.remove('active');
+                uploadSection.style.display = 'block';
+                urlSection.style.display = 'none';
+            } else {
+                uploadTab.classList.remove('active');
+                urlTab.classList.add('active');
+                uploadSection.style.display = 'none';
+                urlSection.style.display = 'block';
+            }
+        }
+        
+        // Select and upload image from device
+        async function selectProfileImageFile() {
+            try {
+                const file = await imageUploader.selectFile('image/*');
+                await uploadProfileImageFile(file);
+            } catch (error) {
+                if (error.message !== 'No file selected') {
+                    showNotification('Failed to select image: ' + error.message, 'error');
+                }
+            }
+        }
+        
+        // Upload profile image to Cloudinary
+        async function uploadProfileImageFile(file) {
+            const progressDiv = document.getElementById('upload-progress');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const saveBtn = document.getElementById('save-image-btn');
+            
+            try {
+                // Show progress
+                progressDiv.style.display = 'block';
+                saveBtn.disabled = true;
+                
+                // Upload with progress tracking
+                const result = await imageUploader.uploadToCloudinary(file, (percent) => {
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = `Uploading... ${Math.round(percent)}%`;
+                });
+                
+                // Success
+                currentProfileImageUrl = result.url;
+                progressText.textContent = '✅ Upload complete!';
+                
+                // Show preview
+                displayProfileImagePreview(result.url);
+                
+                // Hide progress after 2 seconds
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    saveBtn.disabled = false;
+                }, 2000);
+                showNotification('Image uploaded successfully! Click "Save" to apply.');
+            
+            } catch (error) {
+                console.error('Upload error:', error);
+                progressText.textContent = '❌ Upload failed';
+                progressText.style.color = '#dc3545';
+                saveBtn.disabled = false;
+                
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressText.style.color = '#666';
+                }, 3000);
+                
+                showNotification('Upload failed: ' + error.message, 'error');
+            }
+        }
+        
+        // Preview profile image (for URL method)
+        function previewVendorProfileImage() {
+            const imageUrl = document.getElementById('vendor-profile-image-url').value.trim();
+            if (!imageUrl) {
+                document.getElementById('vendor-profile-image-preview').innerHTML = '';
+                return;
+            }
+            
+            currentProfileImageUrl = imageUrl;
+            displayProfileImagePreview(imageUrl);
+        }
+        
+        // Display preview of profile image
+        function displayProfileImagePreview(imageUrl) {
+            const avatar = document.getElementById('vendor-profile-avatar');
+            const preview = document.getElementById('vendor-profile-image-preview');
+            const img = new Image();
+            img.onload = function() {
+                // Update avatar
+                avatar.innerHTML = `
+                <img 
+                src="${imageUrl}" 
+                alt="Profile"
+                style="width: 100%; height: 100%; object-fit: cover;"
+                >
+                `;
+                
+                // Show preview info
+                preview.innerHTML = `
+                <div style="background: #e8f5e8; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+                    ✅ Image loaded successfully
+                </div>
+                `;
+            };
+            
+            img.onerror = function() {
+                preview.innerHTML = `
+                div style="background: #ffe6e6; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; color: #dc3545;">
+                ❌ Failed to load image. Check URL.
+                </div>
+                `;
+            };
+            
+            img.src = imageUrl;
+        }
+        
+        // Save profile image to database
+        async function saveVendorProfileImage() {
+            if (!currentProfileImageUrl) {
+                showNotification('Please select or enter an image first', 'error');
+                return;
+            }
+            
+            try {
+                const response = await api.updateVendorProfileImage(currentProfileImageUrl);
+                
+                if (response.success) {
+                    showNotification('Profile image saved successfully!');
+                    await loadVendorProfileImage();
+                }
+            } catch (error) {
+                showNotification('Failed to save image: ' + error.message, 'error');
+            }
+        }
+        
+        // Remove profile image
+        async function removeVendorProfileImage() {
+            if (!confirm('Are you sure you want to remove your profile image?')) {
+                return;
+            }
+            
+            try {
+                const response = await api.updateVendorProfileImage(null);
+                
+                if (response.success) {
+                    currentProfileImageUrl = null;
+                    document.getElementById('vendor-profile-image-url').value = '';
+                    document.getElementById('vendor-profile-image-preview').innerHTML = '';
+            
+                    showNotification('Profile image removed');
+                    await loadVendorProfileImage();
+                }
+            } catch (error) {
+                showNotification('Failed to remove image: ' + error.message, 'error');
+            }
+        }
+        
+        // Load existing profile image
+        async function loadVendorProfileImage() {
+            try {
+                const response = await api.getVendorProfile();
+                const avatar = document.getElementById('vendor-profile-avatar');
+                
+                if (response.profile_image) {
+                    currentProfileImageUrl = response.profile_image;
+                    
+                    avatar.innerHTML = `
+                    <img 
+                    src="${response.profile_image}" 
+                    alt="${response.outlet_name}"
+                    style="width: 100%; height: 100%; object-fit: cover;"
+                    onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size: 3rem; color: white;\\'>${imageLoader.getOutletInitial(response.outlet_name)}</span>'"
+                    >
+                    `;
+                    document.getElementById('vendor-profile-image-url').value = response.profile_image;
+                } else {
+                    // Show initial
+                    const initial = imageLoader.getOutletInitial(response.outlet_name);
+                    avatar.innerHTML = `<span style="font-size: 3rem; color: white;">${initial}</span>`;
+                }
+            } catch (error) {
+                console.error('Failed to load profile image:', error);
+            }
+        }
+        
+        // Load on page init
+        document.addEventListener('DOMContentLoaded', () => {
+            loadVendorProfileImage();
+        });
+
+        // ==================== MENU ITEM IMAGE FUNCTIONS ====================
+         
+        // Switch between upload tabs for menu items
+        function switchItemUploadTab(method) {
+            currentItemUploadMethod = method;
+            const uploadTab = document.getElementById('item-upload-tab');
+            const urlTab = document.getElementById('item-url-tab');
+            const uploadSection = document.getElementById('item-upload-section');
+            const urlSection = document.getElementById('item-url-section');
+            
+            if (method === 'upload') {
+                uploadTab.classList.add('active');
+                urlTab.classList.remove('active');
+                uploadSection.style.display = 'block';
+                urlSection.style.display = 'none';
+            } else {
+                uploadTab.classList.remove('active');
+                urlTab.classList.add('active');
+                uploadSection.style.display = 'none';
+                urlSection.style.display = 'block';
+            }
+        }
+        
+        // Select item image file
+        async function selectItemImageFile() {
+            try {
+                const file = await imageUploader.selectFile('image/*');
+                await uploadItemImageFile(file);
+            } catch (error) {
+                if (error.message !== 'No file selected') {
+                    showNotification('Failed to select image: ' + error.message, 'error');
+                }
+            }
+        }
+        
+        // Upload item image
+        async function uploadItemImageFile(file) {
+            const progressDiv = document.getElementById('item-upload-progress');
+            const progressBar = document.getElementById('item-progress-bar');
+            const progressText = document.getElementById('item-progress-text');
+            
+            try {
+                progressDiv.style.display = 'block';
+                
+                const result = await imageUploader.uploadToCloudinary(file, (percent) => {
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = `Uploading... ${Math.round(percent)}%`;
+                });
+                
+                currentItemImageUrl = result.url;
+                progressText.textContent = '✅ Upload complete!';
+                
+                displayItemImagePreview(result.url);
+                
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                }, 2000);
+            
+            } catch (error) {
+                console.error('Upload error:', error);
+                progressText.textContent = '❌ Upload failed';
+                progressText.style.color = '#dc3545';
+                
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressText.style.color = '#666';
+                }, 3000);
+                
+                showNotification('Upload failed: ' + error.message, 'error');
+            }
+        }
+        
+        // Preview item image from URL
+        function previewItemImage() {
+            const imageUrl = document.getElementById('item-image-url').value.trim();
+            
+            if (!imageUrl) {
+                resetItemImagePreview();
+                currentItemImageUrl = null;
+                return;
+            }
+            
+            currentItemImageUrl = imageUrl;
+            displayItemImagePreview(imageUrl);
+        }
+        
+        // Display item image preview
+        function displayItemImagePreview(imageUrl) {
+            const preview = document.getElementById('item-image-preview');
+            
+            const img = new Image();
+            img.onload = function() {
+                preview.innerHTML = `
+                <img 
+                src="${imageUrl}" 
+                alt="Preview"
+                style="width: 100%; height: 100%; object-fit: cover;"
+                >
+                `;
+            };
+            
+            img.onerror = function() {
+                preview.innerHTML = `
+                <div style="padding: 20px; color: #dc3545; text-align: center;">
+                <ion-icon name="alert-circle-outline" style="font-size: 3rem;"></ion-icon>
+                <p style="margin-top: 10px; font-size: 0.9rem;">Invalid image URL</p>
+                </div>
+                `;
+            };
+            
+            img.src = imageUrl;
+        }
+        
+        // Reset item image preview
+        function resetItemImagePreview() {
+            document.getElementById('item-image-preview').innerHTML = `
+            <span style="font-size: 4rem; color: #ccc;">🍽️</span>
+            `;
+        }
+        
+        // Open add item modal
+        function openAddItemModal() {
+            editingItemId = null;
+            currentItemImageUrl = null;
+            
+            document.getElementById('modal-title').textContent = 'Add New Item';
+            document.getElementById('submit-btn-text').textContent = 'Add Item';
+            document.getElementById('item-form').reset();
+            document.getElementById('item-image-url').value = '';
+            
+            resetItemImagePreview();
+            switchItemUploadTab('upload');
+            
+            document.getElementById('item-modal').classList.add('active');
         }
     </script>
 

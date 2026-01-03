@@ -264,7 +264,32 @@ class APIService {
 
   async getAvailableOutlets() {
     return this.request('/available-outlets');
-  } 
+  }
+  
+  // ==================== CLOUDINARY CONFIGURATION ====================
+
+  async getCloudinaryConfig() {
+    return this.request('/cloudinary-config');
+  }
+  
+  // ==================== VENDOR PROFILE IMAGE METHODS ====================
+  
+  async getVendorProfile() {
+    return this.request('/vendor/profile');
+  }
+  
+  async updateVendorProfileImage(profileImage) {
+    return this.request('/vendor/profile-image', {
+      method: 'PATCH',
+      body: JSON.stringify({ profile_image: profileImage })
+    });
+  }
+
+  // ==================== OUTLETS WITH IMAGES ====================
+  
+  async getOutlets() {
+    return this.request('/outlets');
+  }
 }
 
 // Create global instance
