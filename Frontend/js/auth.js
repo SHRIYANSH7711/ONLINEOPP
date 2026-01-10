@@ -2,6 +2,7 @@
 class AuthManager {
   constructor() {
     this.loadUser();
+    this.checkSessionExpiry();
   }
 
   loadUser() {
@@ -21,9 +22,27 @@ class AuthManager {
     return this.user && this.user.email_verified === true;
   }
 
+  // ✅ FIX 1: Check session expiry (2 hours)
+  checkSessionExpiry() {
+    const loginTime = localStorage.getItem('loginTime');
+    if (!loginTime) return;
+    
+    const now = Date.now();
+    const twoHours = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+    
+    if (now - parseInt(loginTime) > twoHours) {
+      console.log('Session expired after 2 hours');
+      this.logout();
+    }
+  }
+
   async login(email, password) {
     const response = await api.login({ email, password });
     this.user = response.user;
+    
+    // ✅ FIX 1: Store login timestamp
+    localStorage.setItem('loginTime', Date.now().toString());
+    
     return response;
   }
 
@@ -36,12 +55,17 @@ class AuthManager {
       outletId
     });
     this.user = response.user;
+    
+    // ✅ FIX 1: Store login timestamp
+    localStorage.setItem('loginTime', Date.now().toString());
+    
     return response;
   }
 
   logout() {
     this.user = null;
     api.logout();
+    localStorage.removeItem('loginTime'); // ✅ Clear login time
     window.location.href = '/login.html';
   }
 
@@ -59,7 +83,6 @@ class AuthManager {
       return false;
     }
 
-    // Allow access to settings page for email update
     const allowedUnverifiedPages = ['settings.html', 'verify-email.html'];
     const pageName = window.location.pathname.split('/').pop();
     
@@ -72,7 +95,6 @@ class AuthManager {
   }
 
   showEmailVerificationWarning() {
-    // Check if warning already exists
     if (document.getElementById('email-verification-banner')) {
         return;
     }
@@ -140,7 +162,6 @@ class AuthManager {
         </div>
     `;
 
-    // Add animation
     const style = document.createElement('style');
     style.textContent = `
         @keyframes slideDown {
@@ -157,11 +178,8 @@ class AuthManager {
     document.head.appendChild(style);
 
     document.body.insertBefore(warning, document.body.firstChild);
-
-    // Add padding to body to prevent content overlap
     document.body.style.paddingTop = warning.offsetHeight + 'px';
     
-    // Adjust for mobile
     window.addEventListener('resize', () => {
         const banner = document.getElementById('email-verification-banner');
         if (banner) {
@@ -193,7 +211,7 @@ async function resendVerification() {
   }
 }
 
-// ✅ FIXED: Check authentication on protected pages WITHOUT forcing verification redirect
+// ✅ FIX 1: Enhanced authentication check with role-based routing
 function checkAuth() {
   const protectedPages = [
     'dashboard.html', 'bills.html', 'wallet.html', 
@@ -203,18 +221,29 @@ function checkAuth() {
   
   const currentPage = window.location.pathname.split('/').pop();
   
-  // Check if on a protected page
   if (protectedPages.includes(currentPage)) {
-    // First check authentication
     if (!auth.isAuthenticated()) {
       window.location.href = '/login.html';
       return;
     }
     
     const user = auth.getCurrentUser();
+    
+    // ✅ FIX 1: Redirect vendor to vendor dashboard if on regular dashboard
+    if (user.role === 'vendor' && currentPage === 'dashboard.html') {
+      window.location.href = '/vendor-dashboard.html';
+      return;
+    }
+    
+    // ✅ FIX 1: Redirect non-vendor to regular dashboard if on vendor dashboard
+    if (user.role !== 'vendor' && currentPage === 'vendor-dashboard.html') {
+      window.location.href = '/dashboard.html';
+      return;
+    }
+    
+    // ✅ FIX 2: Block access if email not verified
     if (!user.email_verified) {
       auth.showEmailVerificationWarning();
-      // Don't redirect - let user stay on the page
       return;
     }
   }

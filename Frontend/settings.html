@@ -518,7 +518,7 @@
             }
         }
 
-        function updateProfile() {
+        async function updateProfile() {
             const name = document.getElementById('user-name').value.trim();
             const email = document.getElementById('user-email').value.trim();
             
@@ -526,19 +526,57 @@
                 alert('Please enter a valid name');
                 return;
             }
-
+            
             if (!email || !email.includes('@')) {
                 alert('Please enter a valid email');
                 return;
             }
-
+            
             const user = auth.getCurrentUser();
-            user.name = name;
-            user.email = email;
-            localStorage.setItem('user', JSON.stringify(user));
-
-            updateProfileAvatar(name);
-            alert('Profile updated successfully!');
+            const emailChanged = user.email !== email;
+            
+            //Warn user about email change
+            if (emailChanged) {
+                const confirmed = confirm(
+                    '⚠️ IMPORTANT: Changing your email will log you out and require email verification.\n\n' +
+                    'You will need to:\n' +
+                    '1. Verify the new email address\n' +
+                    '2. Login again with the new email\n\n' +
+                    'Do you want to continue?'
+                );
+                
+                if (!confirmed) {
+                    return;
+                }
+            }
+            
+            try {
+                const response = await api.updateProfile({ name, email });
+                
+                //If email changed, force logout and redirect to verification
+                if (emailChanged) {
+                    alert('✅ Email updated!\n\nA verification email has been sent to your new email address.\n\nYou will now be logged out. Please verify your email and login again.');
+                    
+                    // Update user data
+                    user.name = name;
+                    user.email = email;
+                    user.email_verified = false;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    // Force logout
+                    setTimeout(() => {
+                        auth.logout();
+                    }, 1000);
+                } else {
+                    // Just name changed
+                    user.name = name;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    updateProfileAvatar(name);
+                    alert('Profile updated successfully!');
+                }
+            } catch (error) {
+                alert('Failed to update profile: ' + error.message);
+            }
         }
 
         function openPasswordModal() {

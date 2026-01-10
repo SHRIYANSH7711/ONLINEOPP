@@ -69,43 +69,54 @@ class CanTechApp {
     setupProfileDropdown() {
         const profileIcon = document.querySelector('.user');
         if (!profileIcon) return;
-
-        const dropdown = document.createElement('div');
+        
+        //Check if dropdown already exists to prevent duplicates
+        let dropdown = profileIcon.parentElement.querySelector('.profile-dropdown');
+        
+        if (dropdown) {
+            dropdown.remove(); // Remove existing to prevent duplicates
+        }
+        
+        dropdown = document.createElement('div');
         dropdown.className = 'profile-dropdown';
         dropdown.innerHTML = `
-            <div class="profile-info">
-                <div class="profile-avatar">${this.getInitials()}</div>
-                <div class="profile-details">
-                    <strong id="dropdown-name">Loading...</strong>
-                    <small id="dropdown-email">Loading...</small>
-                </div>
-            </div>
-            <div class="profile-menu">
-                <a href="settings.html" class="profile-menu-item">
-                    <ion-icon name="settings-outline"></ion-icon>
-                    Settings
-                </a>
-                <a href="#" onclick="auth.logout()" class="profile-menu-item">
-                    <ion-icon name="log-out-outline"></ion-icon>
-                    Logout
-                </a>
-            </div>
+        <div class="profile-info">
+        <div class="profile-avatar">${this.getInitials()}</div>
+        <div class="profile-details">
+        <strong id="dropdown-name">Loading...</strong>
+        <small id="dropdown-email">Loading...</small>
+        </div>
+        </div>
+        <div class="profile-menu">
+        <a href="settings.html" class="profile-menu-item">
+        <ion-icon name="settings-outline"></ion-icon>
+        Settings
+        </a>
+        <a href="#" onclick="auth.logout(); return false;" class="profile-menu-item">
+        <ion-icon name="log-out-outline"></ion-icon>
+        Logout
+        </a>
+        </div>
         `;
         
         profileIcon.parentElement.style.position = 'relative';
         profileIcon.parentElement.appendChild(dropdown);
-
-        profileIcon.addEventListener('click', (e) => {
+        
+        //Prevent duplicate event listeners
+        profileIcon.onclick = (e) => {
             e.stopPropagation();
             dropdown.classList.toggle('active');
             
             const user = auth.getCurrentUser();
             if (user) {
-                document.getElementById('dropdown-name').textContent = user.name;
-                document.getElementById('dropdown-email').textContent = user.email;
+                const nameEl = dropdown.querySelector('#dropdown-name');
+                const emailEl = dropdown.querySelector('#dropdown-email');
+                if (nameEl) nameEl.textContent = user.name;
+                if (emailEl) emailEl.textContent = user.email;
             }
-        });
-
+        };
+        
+        // Close dropdown when clicking outside
         document.addEventListener('click', (e) => {
             if (!profileIcon.contains(e.target) && !dropdown.contains(e.target)) {
                 dropdown.classList.remove('active');

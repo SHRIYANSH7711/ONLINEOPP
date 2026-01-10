@@ -1150,7 +1150,7 @@
         }
         
         // Update vendor profile
-        function updateVendorProfile() {
+        async function updateVendorProfile() {
             const name = document.getElementById('vendor-name').value.trim();
             const email = document.getElementById('vendor-email').value.trim();
             
@@ -1165,19 +1165,57 @@
             }
             
             const user = auth.getCurrentUser();
-            user.name = name;
-            user.email = email;
-            localStorage.setItem('user', JSON.stringify(user));
+            const emailChanged = user.email !== email;
             
-            updateVendorProfileAvatar(name);
-            
-            // Update vendor name in navbar
-            const vendorNameEl = document.querySelector('.main-navbar h2 span');
-            if (vendorNameEl) {
-                vendorNameEl.textContent = name;
+            //Warn vendor about email change
+            if (emailChanged) {
+                const confirmed = confirm(
+                    '⚠️ IMPORTANT: Changing your email will log you out and require email verification.\n\n' +
+                    'You will need to:\n' +
+                    '1. Verify the new email address\n' +
+                    '2. Login again with the new email\n\n' +
+                    'Do you want to continue?'
+                );
+                
+                if (!confirmed) {
+                    return;
+                }
             }
             
-            showNotification('Profile updated successfully!');
+            try {
+                const response = await api.updateProfile({ name, email });
+                
+                //If email changed, force logout and redirect to verification
+                if (emailChanged) {
+                    showNotification('Email updated! Please verify your new email address.');
+                    
+                    // Update user data
+                    user.name = name;
+                    user.email = email;
+                    user.email_verified = false;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    setTimeout(() => {
+                        alert('You will now be logged out. Please verify your email and login again.');
+                        auth.logout();
+                    }, 2000);
+                } else {
+                    // Just name changed
+                    user.name = name;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    updateVendorProfileAvatar(name);
+                    
+                    // Update vendor name in navbar
+                    const vendorNameEl = document.querySelector('.main-navbar h2 span');
+                    if (vendorNameEl) {
+                        vendorNameEl.textContent = name;
+                    }
+                    
+                    showNotification('Profile updated successfully!');
+                }
+            } catch (error) {
+                showNotification('Failed to update profile: ' + error.message, 'error');
+            }
         }
         
         // Open password modal

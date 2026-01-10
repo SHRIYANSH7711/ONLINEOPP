@@ -799,6 +799,7 @@ body {
     transform: translateY(-10px);
     transition: all 0.3s ease;
     z-index: 1000;
+    overflow: hidden; /* Prevent content overflow */
 }
 
 .profile-dropdown.active {
@@ -816,6 +817,7 @@ body {
     height: 12px;
     background: white;
     transform: rotate(45deg);
+    z-index: -1; /*Keep arrow behind content */
 }
 
 .profile-info {
@@ -824,6 +826,7 @@ body {
     gap: 1rem;
     padding: 1.5rem;
     border-bottom: 1px solid #eee;
+    background: white; /*Ensure solid background */
 }
 
 .profile-avatar {
@@ -837,25 +840,35 @@ body {
     color: white;
     font-weight: bold;
     font-size: 1.2rem;
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 .profile-details {
     flex: 1;
+    min-width: 0; /*Allow text truncation */
 }
 
 .profile-details strong {
     display: block;
     color: var(--blackColor);
     margin-bottom: 0.3rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; /*Prevent text wrapping */
 }
 
 .profile-details small {
     color: #666;
     font-size: 0.85rem;
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap; /*Prevent email wrapping */
 }
 
 .profile-menu {
     padding: 0.5rem 0;
+    background: white; /*Ensure solid background */
 }
 
 .profile-menu-item {
@@ -866,6 +879,7 @@ body {
     color: var(--blackColor);
     text-decoration: none;
     transition: background 0.2s ease;
+    border: none; /*Remove any borders */
 }
 
 .profile-menu-item:hover {
@@ -875,6 +889,7 @@ body {
 .profile-menu-item ion-icon {
     font-size: 1.2rem;
     color: var(--primaryColor);
+    flex-shrink: 0; /* Prevent icon shrinking */
 }
 
 /* Sidebar overlay */
@@ -1166,6 +1181,11 @@ body.dark-mode .profile-dropdown::before {
 
 body.dark-mode .profile-info {
     border-bottom-color: #444;
+    background: #2d2d2d;
+}
+
+body.dark-mode .profile-menu {
+    background: #2d2d2d;
 }
 
 body.dark-mode .profile-details strong {
