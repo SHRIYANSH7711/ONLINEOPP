@@ -93,6 +93,8 @@
             font-weight: 600;
             transition: background 0.3s;
             margin: 0.5rem;
+            border: none;
+            cursor: pointer;
         }
 
         .btn:hover {
@@ -132,7 +134,7 @@
             <p>Please wait while we verify your email address.</p>
         </div>
 
-        <!-- Pending Verification State (NEW) -->
+        <!-- Pending Verification State -->
         <div id="pending-state" style="display: none;">
             <div class="pending-verification">
                 <div class="pending-icon">📧</div>
@@ -154,8 +156,9 @@
         <div id="success-state" style="display: none;">
             <div class="verification-icon success">✅</div>
             <h2>Email Verified Successfully!</h2>
-            <p>Your email has been verified. You can now access all features of Onlineपेटपूजा.</p>
-            <a href="/dashboard.html" class="btn">Go to Dashboard</a>
+            <p>Your email has been verified. Redirecting you to dashboard...</p>
+            <p style="font-size: 0.9rem; color: #999;">If not redirected automatically, click below:</p>
+            <a href="/dashboard.html" class="btn" id="manual-redirect-btn">Go to Dashboard</a>
         </div>
 
         <!-- Error State -->
@@ -175,6 +178,21 @@
             const token = urlParams.get('token');
             const status = urlParams.get('status');
 
+            // ✅ ADDED: Check if user is already verified
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                const user = JSON.parse(storedUser);
+                if (user.email_verified) {
+                    // Already verified, redirect to dashboard
+                    showSuccess();
+                    const redirectPath = user.role === 'vendor' ? '/vendor-dashboard.html' : '/dashboard.html';
+                    setTimeout(() => {
+                        window.location.href = redirectPath;
+                    }, 2000);
+                    return;
+                }
+            }
+
             // If status=pending, show pending state (user was redirected here)
             if (status === 'pending') {
                 document.getElementById('loading-state').style.display = 'none';
@@ -193,7 +211,6 @@
 
                 if (response.ok && data.success) {
                     // Update user in localStorage if logged in
-                    const storedUser = localStorage.getItem('user');
                     if (storedUser) {
                         const user = JSON.parse(storedUser);
                         user.email_verified = true;
@@ -201,6 +218,17 @@
                     }
 
                     showSuccess();
+                    
+                    // ✅ ADDED: Auto-redirect after 2 seconds
+                    const user = JSON.parse(localStorage.getItem('user'));
+                    const redirectPath = user && user.role === 'vendor' ? '/vendor-dashboard.html' : '/dashboard.html';
+                    
+                    // Update manual redirect button
+                    document.getElementById('manual-redirect-btn').href = redirectPath;
+                    
+                    setTimeout(() => {
+                        window.location.href = redirectPath;
+                    }, 2000);
                 } else {
                     showError(data.error || 'Verification failed');
                 }

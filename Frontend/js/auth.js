@@ -29,11 +29,11 @@ class AuthManager {
 
   async signup(name, email, password, role, outletId) {
     const response = await api.signup({ 
-    name, 
-    email, 
-    password, 
-    role,
-    outletId // Include outlet ID
+      name, 
+      email, 
+      password, 
+      role,
+      outletId
     });
     this.user = response.user;
     return response;
@@ -59,7 +59,7 @@ class AuthManager {
       return false;
     }
 
-     // Allow access to settings page for email update
+    // Allow access to settings page for email update
     const allowedUnverifiedPages = ['settings.html', 'verify-email.html'];
     const pageName = window.location.pathname.split('/').pop();
     
@@ -124,7 +124,7 @@ class AuthManager {
                 ">
                     ✉️ Update Email
                 </a>
-                <button onclick="document.getElementById('email-verification-banner').remove()" style="
+                <button onclick="document.getElementById('email-verification-banner').remove(); document.body.style.paddingTop = '0'" style="
                     background: transparent;
                     color: #333;
                     border: 2px solid #333;
@@ -168,7 +168,7 @@ class AuthManager {
             document.body.style.paddingTop = banner.offsetHeight + 'px';
         }
     });
-}
+  }
 
   redirectIfAuthenticated() {
     if (this.isAuthenticated()) {
@@ -193,7 +193,7 @@ async function resendVerification() {
   }
 }
 
-// Check authentication on protected pages
+// ✅ FIXED: Check authentication on protected pages WITHOUT forcing verification redirect
 function checkAuth() {
   const protectedPages = [
     'dashboard.html', 'bills.html', 'wallet.html', 
@@ -211,11 +211,10 @@ function checkAuth() {
       return;
     }
     
-    // Then check email verification
     const user = auth.getCurrentUser();
     if (!user.email_verified) {
-      // Redirect to verification page with message
-      window.location.href = '/verify-email.html?status=pending';
+      auth.showEmailVerificationWarning();
+      // Don't redirect - let user stay on the page
       return;
     }
   }
