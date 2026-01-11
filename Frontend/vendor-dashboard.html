@@ -953,1029 +953,156 @@
     <script src="js/image-upload.js"></script>
     <script src="js/brand.js"></script>
     <script>
-        let currentOrders = [];
-        let todayOrders = [];
-        let pastOrders = [];
-        let currentMenuItems = [];
-        let currentOrderFilter = 'all';
-        let editingItemId = null;
-        let currentProfileImageUrl = null;
-        let currentUploadMethod = 'upload';
-        let currentItemImageUrl = null;
-        let currentItemUploadMethod = 'upload';
+    // ==================== GLOBAL VARIABLES ====================
+let currentOrders = [];
+let todayOrders = [];
+let pastOrders = [];
+let currentMenuItems = [];
+let currentOrderFilter = 'all';
+let editingItemId = null;
+let currentItemImageUrl = null;
+let currentItemUploadMethod = 'upload';
 
-        async function loadOutletStatus() {
-            try {
-                const status = await api.request('/vendor/status');
-                const statusText = document.getElementById('status-text');
-                const toggleBtn = document.getElementById('toggle-status-btn');
-                
-                if (status.is_online) {
-                    statusText.innerHTML = '🟢 <strong>LIVE</strong> - Accepting orders';
-                    statusText.style.color = '#00b894';
-                    toggleBtn.style.background = '#d63031';
-                    document.getElementById('toggle-text').textContent = 'Go Offline';
-                } else {
-                    statusText.innerHTML = '🔴 <strong>OFFLINE</strong> - Not accepting orders';
-                    statusText.style.color = '#d63031';
-                    toggleBtn.style.background = '#00b894';
-                    document.getElementById('toggle-text').textContent = 'Go Live';
-                }
-            } catch (error) {
-                console.error('Failed to load status:', error);
-            }
-        }
-        
-        async function toggleOutletStatus() {
-            try {
-                const response = await api.request('/vendor/toggle-status', { method: 'PATCH' });
-                alert(response.message);
-                await loadOutletStatus();
-            } catch (error) {
-                alert('Failed to toggle status: ' + error.message);
-            }
-        }
-        
-        // Load status on page load
-        document.addEventListener('DOMContentLoaded', loadOutletStatus);
+// ==================== INITIALIZATION ====================
+document.addEventListener('DOMContentLoaded', async () => {
+    console.log('🚀 Vendor Dashboard Initializing...');
+    
+    const user = auth.getCurrentUser();
+    if (user) {
+        document.getElementById('vendor-name').textContent = user.name;
+    }
+    
+    await loadOutletStatus();
+    await loadOrders();
+    await loadMenuItems();
+    updateStats();
+    startAutoRefresh();
+    
+    // Setup form handler - IMPORTANT!
+    setupFormHandler();
+    
+    // Setup modal handlers
+    setupModalHandlers();
+    
+    console.log('✅ Initialization complete');
+});
 
-        document.addEventListener('DOMContentLoaded', async () => {
-            const user = auth.getCurrentUser();
-            if (user) {
-                document.getElementById('vendor-name').textContent = user.name;
-            }
-            await loadOrders();
-            updateStats();
-            startAutoRefresh();
-        });
+// ==================== AUTO REFRESH ====================
+function startAutoRefresh() {
+    setInterval(() => {
+        loadOrders();
+    }, 30000); // Refresh every 30 seconds
+}
 
-        function startAutoRefresh() {
-            setInterval(() => {
-                loadOrders();
-            }, 30000);
-        }
-
-        async function loadVendorWallet() {
-            try {
-                const walletData = await api.getVendorWallet();
-                
-                // Update balance
-                document.getElementById('vendor-wallet-balance').textContent = 
-                parseFloat(walletData.balance || 0).toFixed(2);
-                
-                // Update UPI display
-                const upiDisplay = document.getElementById('current-upi-display');
-                if (walletData.upi_id) {
-                    upiDisplay.textContent = walletData.upi_id;
-                    upiDisplay.style.color = '#0e6253';
-                    document.getElementById('vendor-upi-input').value = walletData.upi_id;
-                } else {
-                    upiDisplay.textContent = 'Not configured - Set your UPI ID below';
-                    upiDisplay.style.color = '#dc3545';
-                }
-                
-                // Display transactions
-                displayVendorTransactions(walletData.transactions);
-            
-            } catch (error) {
-                console.error('Wallet load error:', error);
-                showNotification('Failed to load wallet data', 'error');
-            }
-        }
+// ==================== FORM HANDLER (CRITICAL FIX) ====================
+function setupFormHandler() {
+    const itemForm = document.getElementById('item-form');
+    
+    if (!itemForm) {
+        console.error('❌ Form not found!');
+        return;
+    }
+    
+    console.log('✅ Setting up form handler...');
+    
+    // Use onsubmit to ensure it only attaches once
+    itemForm.onsubmit = async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
         
-        function displayVendorTransactions(transactions) {
-            const tbody = document.getElementById('vendor-transactions-list');
-            const noTransactions = document.getElementById('no-transactions');
-            
-            if (!transactions || transactions.length === 0) {
-                tbody.style.display = 'none';
-                noTransactions.style.display = 'block';
-                return;
-            }
-            
-            tbody.style.display = 'table-row-group';
-            noTransactions.style.display = 'none';
-            
-            tbody.innerHTML = transactions.map(txn => {
-                const date = new Date(txn.created_at).toLocaleDateString('en-IN', {
-                    year: 'numeric',
-                    month: 'short',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit'
-                });
-                return `
-                <tr>
-                    <td style="color: #000;">${date}</td>
-                    <td style="color: #000;">${txn.description}</td>
-                    <td style="font-size: 0.85rem; color: #666;">${txn.payment_id || 'N/A'}</td>
-                    <td class="transaction-credit" style="text-align: right;">
-                        +₹${parseFloat(txn.amount).toFixed(2)}
-                    </td>
-                </tr>
-                `;
-            }).join('');
-        }
+        console.log('📝 Form submitted!');
         
-        // UPI Form Handler - ADD THIS EVENT LISTENER
-        document.addEventListener('DOMContentLoaded', () => {
-            const upiForm = document.getElementById('upi-form');
-            if (upiForm) {
-                upiForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    
-                    const upiId = document.getElementById('vendor-upi-input').value.trim();
-                    
-                    if (!upiId) {
-                        showNotification('Please enter a valid UPI ID', 'error');
-                        return;
-                    }
-                    
-                    try {
-                        
-                        const response = await api.updateVendorUPI(upiId);
-                        
-                        if (response.success) {
-                            
-                            document.getElementById('current-upi-display').textContent = upiId;
-                            document.getElementById('current-upi-display').style.color = '#0e6253';
-                            showNotification('UPI ID updated successfully!');
-                        }
-                    
-                    } catch (error) {
-                        console.error('UPI update error:', error);
-                        showNotification('Failed to update UPI ID', 'error');
-                    }
-                });
-            }
-            
-            // Load wallet on page init
-            loadVendorWallet();
-        });
+        const submitBtn = itemForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
         
-        function refreshWallet() {
-            loadVendorWallet();
-            showNotification('Wallet refreshed!');
-        }
-
-        // Load vendor settings data
-        function loadVendorSettings() {
-            const user = auth.getCurrentUser();
-            if (user) {
-                document.getElementById('vendor-name').value = user.name;
-                document.getElementById('vendor-email').value = user.email;
-                updateVendorProfileAvatar(user.name);
-            }
-            
-            // Load preferences
-            const darkMode = localStorage.getItem('vendorDarkMode') === 'true';
-            const notifications = localStorage.getItem('vendorNotifications') !== 'false';
-            const autoRefresh = localStorage.getItem('vendorAutoRefresh') !== 'false';
-            
-            document.getElementById('vendor-dark-mode').checked = darkMode;
-            document.getElementById('vendor-notifications').checked = notifications;
-            document.getElementById('vendor-auto-refresh').checked = autoRefresh;
-            
-            if (darkMode) {
-                document.body.classList.add('dark-mode');
-            }
-        }
+        // Disable button
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Saving...';
         
-        // Update profile avatar with initials
-        function updateVendorProfileAvatar(name) {
-            const avatar = document.getElementById('vendor-profile-avatar');
-            if (avatar) {
-                const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-                avatar.textContent = initials;
-            }
-        }
-        
-        // Update vendor profile
-        async function updateVendorProfile() {
-            const name = document.getElementById('vendor-name').value.trim();
-            const email = document.getElementById('vendor-email').value.trim();
-            
-            if (!name) {
-                showNotification('Please enter a valid name', 'error');
-                return;
-            }
-            
-            if (!email || !email.includes('@')) {
-                showNotification('Please enter a valid email', 'error');
-                return;
-            }
-            
-            const user = auth.getCurrentUser();
-            const emailChanged = user.email !== email;
-            
-            //Warn vendor about email change
-            if (emailChanged) {
-                const confirmed = confirm(
-                    '⚠️ IMPORTANT: Changing your email will log you out and require email verification.\n\n' +
-                    'You will need to:\n' +
-                    '1. Verify the new email address\n' +
-                    '2. Login again with the new email\n\n' +
-                    'Do you want to continue?'
-                );
-                
-                if (!confirmed) {
-                    return;
-                }
-            }
-            
-            try {
-                const response = await api.updateProfile({ name, email });
-                
-                //If email changed, force logout and redirect to verification
-                if (emailChanged) {
-                    showNotification('Email updated! Please verify your new email address.');
-                    
-                    // Update user data
-                    user.name = name;
-                    user.email = email;
-                    user.email_verified = false;
-                    localStorage.setItem('user', JSON.stringify(user));
-                    
-                    setTimeout(() => {
-                        alert('You will now be logged out. Please verify your email and login again.');
-                        auth.logout();
-                    }, 2000);
-                } else {
-                    // Just name changed
-                    user.name = name;
-                    localStorage.setItem('user', JSON.stringify(user));
-                    updateVendorProfileAvatar(name);
-                    
-                    // Update vendor name in navbar
-                    const vendorNameEl = document.querySelector('.main-navbar h2 span');
-                    if (vendorNameEl) {
-                        vendorNameEl.textContent = name;
-                    }
-                    
-                    showNotification('Profile updated successfully!');
-                }
-            } catch (error) {
-                showNotification('Failed to update profile: ' + error.message, 'error');
-            }
-        }
-        
-        // Open password modal
-        function openVendorPasswordModal() {
-            document.getElementById('vendor-password-modal').style.display = 'flex';
-        }
-        
-        // Close password modal
-        function closeVendorPasswordModal() {
-            document.getElementById('vendor-password-modal').style.display = 'none';
-            document.getElementById('vendor-password-form').reset();
-        }
-        
-        // Handle password form submission
-        document.addEventListener('DOMContentLoaded', () => {
-            const passwordForm = document.getElementById('vendor-password-form');
-            if (passwordForm) {
-                passwordForm.addEventListener('submit', (e) => {
-                    e.preventDefault();
-
-                    const currentPassword = document.getElementById('vendor-current-password').value;
-                    const newPassword = document.getElementById('vendor-new-password').value;
-                    const confirmPassword = document.getElementById('vendor-confirm-password').value;
-                    
-                    if (newPassword !== confirmPassword) {
-                        showNotification('New passwords do not match', 'error');
-                        return;
-                    }
-                    
-                    if (newPassword.length < 6) {
-                        showNotification('Password must be at least 6 characters long', 'error');
-                        return;
-                    }
-                    
-                    // In production, this should call your backend API
-                    showNotification('Password changed successfully!\n\nNote: Backend API integration required for actual password change.');
-                    closeVendorPasswordModal();
-                
-                });
-            }
-        });
-        
-        // Toggle dark mode
-        function toggleVendorDarkMode() {
-            const isDark = document.getElementById('vendor-dark-mode').checked;
-            localStorage.setItem('vendorDarkMode', isDark);
-            
-            if (isDark) {
-                document.body.classList.add('dark-mode');
-            } else {
-                document.body.classList.remove('dark-mode');
-            }
-        }
-        
-        // Toggle notifications
-        function toggleVendorNotifications() {
-            const enabled = document.getElementById('vendor-notifications').checked;
-            localStorage.setItem('vendorNotifications', enabled);
-            
-            if (enabled && 'Notification' in window) {
-                Notification.requestPermission();
-            }
-            
-            showNotification(enabled ? 'Notifications enabled' : 'Notifications disabled');
-        }
-        
-        // Toggle auto-refresh
-        function toggleVendorAutoRefresh() {
-            const enabled = document.getElementById('vendor-auto-refresh').checked;
-            localStorage.setItem('vendorAutoRefresh', enabled);
-            
-            showNotification(enabled ? 'Auto-refresh enabled' : 'Auto-refresh disabled');
-        }
-        
-        // Photo upload handler
-        document.addEventListener('DOMContentLoaded', () => {
-            const photoUpload = document.getElementById('vendor-photo-upload');
-            if (photoUpload) {
-                photoUpload.addEventListener('change', (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const reader = new FileReader();
-                        reader.onload = (event) => {
-                            const avatar = document.getElementById('vendor-profile-avatar');
-                            avatar.style.backgroundImage = `url(${event.target.result})`;
-                            avatar.style.backgroundSize = 'cover';
-                            avatar.style.backgroundPosition = 'center';
-                            avatar.textContent = '';
-                            showNotification('Photo uploaded! (Note: Backend integration needed for storage)');
-                        };
-                        reader.readAsDataURL(file);
-                    }
-                });
-            }
-        });
-        
-        // Close modal on outside click
-        window.onclick = (event) => {
-            const modal = document.getElementById('vendor-password-modal');
-            if (event.target === modal) {
-                closeVendorPasswordModal();
-            }
+        const itemData = {
+            name: document.getElementById('item-name').value.trim(),
+            price: parseFloat(document.getElementById('item-price').value),
+            category: document.getElementById('item-category').value || null,
+            description: document.getElementById('item-description').value.trim() || null,
+            image_url: currentItemImageUrl || null
         };
-
-        document.addEventListener('DOMContentLoaded', () => {
-            loadVendorSettings();
-        });
         
-        function showSection(section) {
-            document.getElementById('orders-section').style.display = 'none';
-            document.getElementById('past-orders-section').style.display = 'none';
-            document.getElementById('menu-section').style.display = 'none';
-            document.getElementById('wallet-section').style.display = 'none';
-            document.getElementById('settings-section').style.display = 'none';
-            
-            if (section === 'orders') {
-                document.getElementById('orders-section').style.display = 'block';
-                loadOrders();
-            } else if (section === 'past-orders') {
-                document.getElementById('past-orders-section').style.display = 'block';
-                displayPastOrders();
-            } else if (section === 'menu') {
-                document.getElementById('menu-section').style.display = 'block';
-                loadMenuItems();
-            } else if (section === 'wallet') {
-                document.getElementById('wallet-section').style.display = 'block';
-                loadVendorWallet();
-            } else if (section === 'settings') {
-                document.getElementById('settings-section').style.display = 'block';
-                loadVendorSettings();
-            }
+        console.log('📦 Item data:', itemData);
+        
+        // Validation
+        if (!itemData.name) {
+            alert('Please enter item name');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+            return;
         }
-
-        async function refreshOrders() {
-            await loadOrders();
-            showNotification('Orders refreshed!');
+        
+        if (!itemData.price || itemData.price <= 0) {
+            alert('Please enter valid price');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+            return;
         }
-
-        async function loadOrders() {
-            try {
-                currentOrders = await api.getVendorOrders();
-                separateOrders();
-                displayTodayOrders();
-                updateStats();
-            } catch (error) {
-                console.error('Error loading orders:', error);
-                document.getElementById('orders-list').innerHTML = `
-                    <div class="empty-state">
-                        <p style="color: red;">Error: ${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        function separateOrders() {
-            const today = new Date().toISOString().split('T')[0];
-            
-            todayOrders = currentOrders.filter(order => {
-                const orderDate = new Date(order.created_at).toISOString().split('T')[0];
-                return orderDate === today;
-            });
-
-            pastOrders = currentOrders.filter(order => {
-                const orderDate = new Date(order.created_at).toISOString().split('T')[0];
-                return orderDate < today;
-            });
-        }
-
-        function filterTodayOrders(status) {
-            currentOrderFilter = status;
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            displayTodayOrders();
-        }
-
-        function displayTodayOrders() {
-            const container = document.getElementById('orders-list');
-            let ordersToShow = todayOrders;
-            
-            if (currentOrderFilter !== 'all') {
-                ordersToShow = todayOrders.filter(o => o.status === currentOrderFilter);
-            }
-
-            if (ordersToShow.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No orders for today yet.</p></div>';
-                return;
-            }
-
-            container.innerHTML = ordersToShow.map(order => createOrderCard(order, false)).join('');
-        }
-
-        function displayPastOrders() {
-            const container = document.getElementById('past-orders-list');
-            
-            if (pastOrders.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No past orders.</p></div>';
-                return;
-            }
-
-            container.innerHTML = pastOrders.map(order => createOrderCard(order, true)).join('');
-        }
-
-        function createOrderCard(order, isPast) {
-            const orderDate = new Date(order.created_at).toLocaleString('en-IN');
-            const orderDay = new Date(order.created_at).toLocaleDateString('en-IN', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
-            
-            const itemsHTML = order.items.map(item => `
-                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #e0e0e0;">
-                    <span>${item.name} (${item.qty}×)</span>
-                    <span>₹${(parseFloat(item.price) * item.qty).toFixed(2)}</span>
-                </div>
-            `).join('');
-
-            return `
-                <div class="order-card">
-                    <div class="order-header">
-                        <div>
-                            <div class="order-token">
-                                Token: ${order.token}
-                                ${isPast ? `<span class="order-date-badge">${orderDay}</span>` : ''}
-                            </div>
-                            <small style="color: #666;">${orderDate}</small>
-                        </div>
-                        <span style="padding: 5px 10px; background: #e8f5e8; color: #2d5a2d; border-radius: 15px; font-size: 12px; font-weight: bold;">${order.status.toUpperCase()}</span>
-                    </div>
-                    
-                    <div style="margin: 1rem 0; padding: 1rem; background: #f9f9f9; border-radius: 5px;">
-                        <strong>Items:</strong>
-                        ${itemsHTML}
-                        <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 2px solid #0e6253;">
-                            <strong>Total</strong>
-                            <strong>₹${parseFloat(order.total_amount).toFixed(2)}</strong>
-                        </div>
-                    </div>
-
-                    ${!isPast ? `
-                    <label style="display: flex; align-items: center; gap: 10px;">
-                        <strong>Status:</strong>
-                        <select style="padding: 8px 12px; border: 2px solid #0e6253; border-radius: 5px;" onchange="updateOrderStatus(${order.id}, this.value)">
-                            <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
-                            <option value="confirmed" ${order.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
-                            <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Preparing</option>
-                            <option value="ready" ${order.status === 'ready' ? 'selected' : ''}>Ready</option>
-                            <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
-                        </select>
-                    </label>
-                    ` : ''}
-                </div>
-            `;
-        }
-
-        async function loadMenuItems() {
-            try {
-                currentMenuItems = await api.getVendorMenuItems();
-                displayMenuItems(currentMenuItems);
-                updateStats();
-            } catch (error) {
-                console.error('Error loading menu items:', error);
-                document.getElementById('menu-items').innerHTML = `
-                    <div class="empty-state">
-                        <p style="color: red;">Error: ${error.message}</p>
-                    </div>
-                `;
-            }
-        }
-
-        function displayMenuItems(items) {
-            const container = document.getElementById('menu-items');
-            
-            if (items.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>No menu items yet. Click "Add New Item" to get started!</p></div>';
-                return;
-            }
-            
-            container.innerHTML = items.map(item => {
-                const imageHTML = item.image_url 
-                ? `<img src="${item.image_url}" 
-                class="vendor-menu-item-img" 
-                alt="${item.name}"
-                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-                <div class="vendor-menu-item-img-placeholder" style="display: none;">🍽️</div>`
-                : `<div class="vendor-menu-item-img-placeholder">🍽️</div>`;
-                return `
-                <div class="menu-card">
-                    ${imageHTML}
-                    <div class="menu-card-info">
-                        <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
-                        <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
-                        ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
-                        </div>
-                        <div class="menu-card-actions">
-                            <label class="switch">
-                                <input type="checkbox" 
-                                ${item.is_available ? 'checked' : ''} 
-                                onchange="toggleAvailability(${item.id}, this.checked)">
-                                <span class="switch-slider"></span>
-                            </label>
-                            <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
-                            <button class="btn-edit" onclick="editItem(${item.id})">
-                                <ion-icon name="create-outline"></ion-icon> Edit
-                            </button>
-                            <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name}')">
-                                <ion-icon name="trash-outline"></ion-icon> Delete
-                            </button>
-                        </div>
-                    </div>
-                    `;
-                }).join('');
-            }
-
-        function openAddItemModal() {
-            editingItemId = null;
-            document.getElementById('modal-title').textContent = 'Add New Item';
-            document.getElementById('submit-btn-text').textContent = 'Add Item';
-            document.getElementById('item-form').reset();
-            document.getElementById('item-modal').classList.add('active');
-        }
-
-        function editItem(itemId) {
-            const item = currentMenuItems.find(i => i.id === itemId);
-            if (!item) return;
-            
-            editingItemId = itemId;
-            currentItemImageUrl = item.image_url;
-            
-            document.getElementById('modal-title').textContent = 'Edit Item';
-            document.getElementById('submit-btn-text').textContent = 'Update Item';
-            document.getElementById('item-name').value = item.name;
-            document.getElementById('item-price').value = item.price;
-            document.getElementById('item-category').value = item.category || '';
-            document.getElementById('item-description').value = item.description || '';
-            
-            // Set image
-            if (item.image_url) {
-                document.getElementById('item-image-url').value = item.image_url;
-                displayItemImagePreview(item.image_url);
-                switchItemUploadTab('url');
+        
+        try {
+            if (editingItemId) {
+                console.log('🔄 Updating item:', editingItemId);
+                await api.updateMenuItem(editingItemId, itemData);
+                showNotification('✅ Item updated successfully!');
             } else {
-                resetItemImagePreview();
-                switchItemUploadTab('upload');
+                console.log('➕ Adding new item...');
+                await api.addMenuItem(itemData);
+                showNotification('✅ Item added successfully!');
             }
             
-            document.getElementById('item-modal').classList.add('active');
+            closeItemModal();
+            await loadMenuItems();
+            updateStats();
+        } catch (error) {
+            console.error('❌ Save error:', error);
+            alert('Failed to save: ' + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
         }
+    };
+    
+    console.log('✅ Form handler attached successfully');
+}
 
-        // Image preview functionality
-        document.getElementById('item-image').addEventListener('input', function() {
-            const imageUrl = this.value.trim();
-            const previewContainer = document.getElementById('image-preview-container');
-            const previewImg = document.getElementById('image-preview');
-            
-            if (imageUrl) {
-                previewImg.src = imageUrl;
-                previewImg.onerror = function() {
-                    previewContainer.style.display = 'none';
-                };
-                previewImg.onload = function() {
-                    previewContainer.style.display = 'block';
-                };
-            } else {
-                previewContainer.style.display = 'none';
-            }
-        });
-
-        function closeItemModal() {
-            document.getElementById('item-modal').classList.remove('active');
-            document.getElementById('item-form').reset();
-            document.getElementById('item-image-url').value = '';
-            resetItemImagePreview();
-            editingItemId = null;
-            currentItemImageUrl = null;
+// ==================== MODAL HANDLERS (CRITICAL FIX) ====================
+function setupModalHandlers() {
+    const itemModal = document.getElementById('item-modal');
+    
+    if (!itemModal) {
+        console.error('❌ Modal not found!');
+        return;
+    }
+    
+    // Click outside to close
+    itemModal.onclick = function(event) {
+        if (event.target === itemModal) {
+            console.log('🚪 Closing modal (outside click)');
+            closeItemModal();
         }
-
-        document.addEventListener('DOMContentLoaded', () => {
-            const itemForm = document.getElementById('item-form');
-            
-            if (itemForm) {
-                // Remove any existing listeners to prevent duplicates
-                const newForm = itemForm.cloneNode(true);
-                itemForm.parentNode.replaceChild(newForm, itemForm);
-                
-                // Add fresh submit listener
-                document.getElementById('item-form').addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log('Form submitted!'); // Debug log
-                     
-                    // Disable submit button to prevent double-clicks
-                    const submitBtn = e.target.querySelector('button[type="submit"]');
-                    if (submitBtn) {
-                        submitBtn.disabled = true;
-                        submitBtn.textContent = 'Saving...';
-                    }
-                    
-                    const itemData = {
-                        name: document.getElementById('item-name').value.trim(),
-                        price: parseFloat(document.getElementById('item-price').value),
-                        category: document.getElementById('item-category').value || null,
-                        description: document.getElementById('item-description').value.trim() || null,
-                        image_url: currentItemImageUrl || null
-                    };
-                    
-                    // Validation
-                    if (!itemData.name) {
-                        showNotification('Please enter item name', 'error');
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.textContent = editingItemId ? 'Update Item' : 'Add Item';
-                        }
-                        return;
-                    }
-                    
-                    if (!itemData.price || itemData.price <= 0) {
-                        showNotification('Please enter valid price', 'error');
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.textContent = editingItemId ? 'Update Item' : 'Add Item';
-                        }
-                        return;
-                    }
-                    
-                    console.log('Submitting item data:', itemData); // Debug log
-                     
-                    try {
-                        if (editingItemId) {
-                            await api.updateMenuItem(editingItemId, itemData);
-                            showNotification('Item updated successfully!');
-                        } else {
-                            await api.addMenuItem(itemData);
-                            showNotification('Item added successfully!');
-                        }
-                        
-                        closeItemModal();
-                        await loadMenuItems();
-                    } catch (error) {
-                        console.error('Error saving item:', error);
-                        showNotification('Failed to save: ' + error.message, 'error');
-                    } finally {
-                        // Re-enable button
-                        if (submitBtn) {
-                            submitBtn.disabled = false;
-                            submitBtn.textContent = editingItemId ? 'Update Item' : 'Add Item';
-                        }
-                    }
-                });
-            }
-            
-            // ✅ Close modal on outside click
-            const itemModal = document.getElementById('item-modal');
-            if (itemModal) {
-                itemModal.addEventListener('click', function(event) {
-                    if (event.target === itemModal) {
-                        closeItemModal();
-                    }
-                });
-            }
-            
-            // ✅ Close modal on ESC key
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape') {
-                    const modal = document.getElementById('item-modal');
-                    if (modal && modal.classList.contains('active')) {
-                        closeItemModal();
-                    }
-                }
-            });
-        });
-
-        async function deleteItem(itemId, itemName) {
-            if (!confirm(`Are you sure you want to delete "${itemName}"?`)) {
-                return;
-            }
-
-            try {
-                const result = await api.deleteMenuItem(itemId);
-                
-                if (result.soft_delete) {
-                    showNotification(result.message);
-                } else {
-                    showNotification('Item deleted successfully!');
-                }
-                
-                await loadMenuItems();
-            } catch (error) {
-                console.error('Error deleting item:', error);
-                showNotification(error.message, 'error');
-            }
-        }
-
-        async function toggleAvailability(itemId, isAvailable) {
-            try {
-                await api.toggleMenuItemAvailability(itemId, isAvailable);
-                showNotification('Availability updated successfully!');
-                await loadMenuItems();
-            } catch (error) {
-                console.error('Error updating availability:', error);
-                showNotification('Failed to update item availability', 'error');
-                await loadMenuItems();
-            }
-        }
-
-        async function updateOrderStatus(orderId, status) {
-            try {
-                await api.updateOrderStatus(orderId, status);
-                showNotification('Order status updated successfully!');
-                await loadOrders();
-            } catch (error) {
-                console.error('Error updating order status:', error);
-                showNotification('Failed to update order status', 'error');
-                await loadOrders();
-            }
-        }
-
-        function updateStats() {
-            document.getElementById('total-orders').textContent = currentOrders.length;
-            document.getElementById('today-orders').textContent = todayOrders.length;
-            document.getElementById('pending-orders').textContent = 
-                todayOrders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
-            document.getElementById('menu-items-count').textContent = currentMenuItems.length;
-        }
-
-        function showNotification(message, type = 'success') {
-            const notification = document.createElement('div');
-            notification.style.cssText = `
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                background: ${type === 'success' ? '#00b894' : '#d63031'};
-                color: white;
-                padding: 15px 20px;
-                border-radius: 8px;
-                z-index: 1000;
-                box-shadow: 0 3px 10px rgba(0,0,0,0.2);
-            `;
-            notification.textContent = message;
-            document.body.appendChild(notification);
-            
-            setTimeout(() => notification.remove(), 3000);
-        }
-
-        // Close modal when clicking outside
-        window.onclick = function(event) {
+    };
+    
+    // ESC key to close
+    document.onkeydown = function(event) {
+        if (event.key === 'Escape') {
             const modal = document.getElementById('item-modal');
-            if (event.target === modal) {
+            if (modal && modal.classList.contains('active')) {
+                console.log('🚪 Closing modal (ESC key)');
                 closeItemModal();
             }
         }
+    };
+    
+    console.log('✅ Modal handlers attached');
+}
 
-        // ==================== PROFILE IMAGE UPLOAD FUNCTIONS ====================
-
-        // Switch between upload and URL tabs
-        function switchUploadTab(method) {
-            currentUploadMethod = method;
-            const uploadTab = document.getElementById('upload-tab');
-            const urlTab = document.getElementById('url-tab');
-            const uploadSection = document.getElementById('upload-section');
-            const urlSection = document.getElementById('url-section');
-            
-            if (method === 'upload') {
-                uploadTab.classList.add('active');
-                urlTab.classList.remove('active');
-                uploadSection.style.display = 'block';
-                urlSection.style.display = 'none';
-            } else {
-                uploadTab.classList.remove('active');
-                urlTab.classList.add('active');
-                uploadSection.style.display = 'none';
-                urlSection.style.display = 'block';
-            }
-        }
-        
-        // Select and upload image from device
-        async function selectProfileImageFile() {
-            try {
-                const file = await imageUploader.selectFile('image/*');
-                await uploadProfileImageFile(file);
-            } catch (error) {
-                if (error.message !== 'No file selected') {
-                    showNotification('Failed to select image: ' + error.message, 'error');
-                }
-            }
-        }
-        
-        // Upload profile image to Cloudinary
-        async function uploadProfileImageFile(file) {
-            const progressDiv = document.getElementById('upload-progress');
-            const progressBar = document.getElementById('progress-bar');
-            const progressText = document.getElementById('progress-text');
-            const saveBtn = document.getElementById('save-image-btn');
-            
-            try {
-                // Show progress
-                progressDiv.style.display = 'block';
-                saveBtn.disabled = true;
-                
-                // Upload with progress tracking
-                const result = await imageUploader.uploadToCloudinary(file, (percent) => {
-                    progressBar.style.width = percent + '%';
-                    progressText.textContent = `Uploading... ${Math.round(percent)}%`;
-                });
-                
-                // Success
-                currentProfileImageUrl = result.url;
-                progressText.textContent = '✅ Upload complete!';
-                
-                // Show preview
-                displayProfileImagePreview(result.url);
-                
-                // Hide progress after 2 seconds
-                setTimeout(() => {
-                    progressDiv.style.display = 'none';
-                    progressBar.style.width = '0%';
-                    saveBtn.disabled = false;
-                }, 2000);
-                showNotification('Image uploaded successfully! Click "Save" to apply.');
-            
-            } catch (error) {
-                console.error('Upload error:', error);
-                progressText.textContent = '❌ Upload failed';
-                progressText.style.color = '#dc3545';
-                saveBtn.disabled = false;
-                
-                setTimeout(() => {
-                    progressDiv.style.display = 'none';
-                    progressBar.style.width = '0%';
-                    progressText.style.color = '#666';
-                }, 3000);
-                
-                showNotification('Upload failed: ' + error.message, 'error');
-            }
-        }
-        
-        // Preview profile image (for URL method)
-        function previewVendorProfileImage() {
-            const imageUrl = document.getElementById('vendor-profile-image-url').value.trim();
-            if (!imageUrl) {
-                document.getElementById('vendor-profile-image-preview').innerHTML = '';
-                return;
-            }
-            
-            currentProfileImageUrl = imageUrl;
-            displayProfileImagePreview(imageUrl);
-        }
-        
-        // Display preview of profile image
-        function displayProfileImagePreview(imageUrl) {
-            const avatar = document.getElementById('vendor-profile-avatar');
-            const preview = document.getElementById('vendor-profile-image-preview');
-            const img = new Image();
-            img.onload = function() {
-                // Update avatar
-                avatar.innerHTML = `
-                <img 
-                src="${imageUrl}" 
-                alt="Profile"
-                style="width: 100%; height: 100%; object-fit: cover;"
-                >
-                `;
-                
-                // Show preview info
-                preview.innerHTML = `
-                <div style="background: #e8f5e8; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem;">
-                    ✅ Image loaded successfully
-                </div>
-                `;
-            };
-            
-            img.onerror = function() {
-                preview.innerHTML = `
-                div style="background: #ffe6e6; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; color: #dc3545;">
-                ❌ Failed to load image. Check URL.
-                </div>
-                `;
-            };
-            
-            img.src = imageUrl;
-        }
-        
-        // Save profile image to database
-        async function saveVendorProfileImage() {
-            if (!currentProfileImageUrl) {
-                showNotification('Please select or enter an image first', 'error');
-                return;
-            }
-            
-            try {
-                const response = await api.updateVendorProfileImage(currentProfileImageUrl);
-                
-                if (response.success) {
-                    showNotification('Profile image saved successfully!');
-                    await loadVendorProfileImage();
-                }
-            } catch (error) {
-                showNotification('Failed to save image: ' + error.message, 'error');
-            }
-        }
-        
-        // Remove profile image
-        async function removeVendorProfileImage() {
-            if (!confirm('Are you sure you want to remove your profile image?')) {
-                return;
-            }
-            
-            try {
-                const response = await api.updateVendorProfileImage(null);
-                
-                if (response.success) {
-                    currentProfileImageUrl = null;
-                    document.getElementById('vendor-profile-image-url').value = '';
-                    document.getElementById('vendor-profile-image-preview').innerHTML = '';
-            
-                    showNotification('Profile image removed');
-                    await loadVendorProfileImage();
-                }
-            } catch (error) {
-                showNotification('Failed to remove image: ' + error.message, 'error');
-            }
-        }
-        
-        // Load existing profile image
-        async function loadVendorProfileImage() {
-            try {
-                const response = await api.getVendorProfile();
-                const avatar = document.getElementById('vendor-profile-avatar');
-                
-                if (response.profile_image) {
-                    currentProfileImageUrl = response.profile_image;
-                    
-                    avatar.innerHTML = `
-                    <img 
-                    src="${response.profile_image}" 
-                    alt="${response.outlet_name}"
-                    style="width: 100%; height: 100%; object-fit: cover;"
-                    onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size: 3rem; color: white;\\'>${imageLoader.getOutletInitial(response.outlet_name)}</span>'"
-                    >
-                    `;
-                    document.getElementById('vendor-profile-image-url').value = response.profile_image;
-                } else {
-                    // Show initial
-                    const initial = imageLoader.getOutletInitial(response.outlet_name);
-                    avatar.innerHTML = `<span style="font-size: 3rem; color: white;">${initial}</span>`;
-                }
-            } catch (error) {
-                console.error('Failed to load profile image:', error);
-            }
-        }
-        
-        // Load on page init
-        document.addEventListener('DOMContentLoaded', () => {
-            loadVendorProfileImage();
-        });
-
-        // ==================== MENU ITEM IMAGE FUNCTIONS ====================
-         
-        function switchItemUploadTab(method) {
+// ==================== IMAGE UPLOAD FUNCTIONS ====================
+function switchItemUploadTab(method) {
     currentItemUploadMethod = method;
     const uploadTab = document.getElementById('item-upload-tab');
     const urlTab = document.getElementById('item-url-tab');
@@ -1995,7 +1122,6 @@
     }
 }
 
-// Select item image file
 async function selectItemImageFile() {
     try {
         const file = await imageUploader.selectFile('image/*');
@@ -2007,7 +1133,6 @@ async function selectItemImageFile() {
     }
 }
 
-// Upload item image
 async function uploadItemImageFile(file) {
     const progressDiv = document.getElementById('item-upload-progress');
     const progressBar = document.getElementById('item-progress-bar');
@@ -2023,14 +1148,12 @@ async function uploadItemImageFile(file) {
         
         currentItemImageUrl = result.url;
         progressText.textContent = '✅ Upload complete!';
-        
         displayItemImagePreview(result.url);
         
         setTimeout(() => {
             progressDiv.style.display = 'none';
             progressBar.style.width = '0%';
         }, 2000);
-    
     } catch (error) {
         console.error('Upload error:', error);
         progressText.textContent = '❌ Upload failed';
@@ -2046,7 +1169,6 @@ async function uploadItemImageFile(file) {
     }
 }
 
-// Preview item image from URL
 function previewItemImage() {
     const imageUrl = document.getElementById('item-image-url').value.trim();
     
@@ -2060,42 +1182,33 @@ function previewItemImage() {
     displayItemImagePreview(imageUrl);
 }
 
-// Display item image preview
 function displayItemImagePreview(imageUrl) {
     const preview = document.getElementById('item-image-preview');
-    
     const img = new Image();
+    
     img.onload = function() {
-        preview.innerHTML = `
-        <img 
-        src="${imageUrl}" 
-        alt="Preview"
-        style="width: 100%; height: 100%; object-fit: cover;"
-        >
-        `;
+        preview.innerHTML = `<img src="${imageUrl}" alt="Preview" style="width: 100%; height: 100%; object-fit: cover;">`;
     };
     
     img.onerror = function() {
         preview.innerHTML = `
-        <div style="padding: 20px; color: #dc3545; text-align: center;">
-        <ion-icon name="alert-circle-outline" style="font-size: 3rem;"></ion-icon>
-        <p style="margin-top: 10px; font-size: 0.9rem;">Invalid image URL</p>
-        </div>
+            <div style="padding: 20px; color: #dc3545; text-align: center;">
+                <ion-icon name="alert-circle-outline" style="font-size: 3rem;"></ion-icon>
+                <p style="margin-top: 10px; font-size: 0.9rem;">Invalid image URL</p>
+            </div>
         `;
     };
     
     img.src = imageUrl;
 }
 
-// Reset item image preview
 function resetItemImagePreview() {
-    document.getElementById('item-image-preview').innerHTML = `
-    <span style="font-size: 4rem; color: #ccc;">🍽️</span>
-    `;
+    document.getElementById('item-image-preview').innerHTML = '<span style="font-size: 4rem; color: #ccc;">🍽️</span>';
 }
 
-// Open add item modal
+// ==================== MODAL OPEN/CLOSE ====================
 function openAddItemModal() {
+    console.log('📂 Opening add item modal');
     editingItemId = null;
     currentItemImageUrl = null;
     
@@ -2110,8 +1223,8 @@ function openAddItemModal() {
     document.getElementById('item-modal').classList.add('active');
 }
 
-// Close item modal
 function closeItemModal() {
+    console.log('📂 Closing modal');
     document.getElementById('item-modal').classList.remove('active');
     document.getElementById('item-form').reset();
     document.getElementById('item-image-url').value = '';
@@ -2120,483 +1233,357 @@ function closeItemModal() {
     currentItemImageUrl = null;
 }
 
-// ==================== FORM SUBMISSION FIX ====================
-
-// Initialize form handler ONCE on page load
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('🔧 Initializing vendor dashboard...');
+function editItem(itemId) {
+    const item = currentMenuItems.find(i => i.id === itemId);
+    if (!item) return;
     
-    const itemForm = document.getElementById('item-form');
+    console.log('✏️ Editing item:', itemId);
+    editingItemId = itemId;
+    currentItemImageUrl = item.image_url;
     
-    if (itemForm) {
-        console.log('✅ Item form found, attaching listener...');
-        
-        // Use addEventListener directly (don't clone)
-        itemForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            console.log('📝 Form submitted!');
-            
-            const submitBtn = itemForm.querySelector('button[type="submit"]');
-            const originalText = submitBtn.textContent;
-            
-            // Disable button to prevent double-clicks
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Saving...';
-            
-            const itemData = {
-                name: document.getElementById('item-name').value.trim(),
-                price: parseFloat(document.getElementById('item-price').value),
-                category: document.getElementById('item-category').value || null,
-                description: document.getElementById('item-description').value.trim() || null,
-                image_url: currentItemImageUrl || null
-            };
-            
-            console.log('📦 Item data:', itemData);
-            
-            // Validation
-            if (!itemData.name) {
-                showNotification('Please enter item name', 'error');
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
-                return;
-            }
-            
-            if (!itemData.price || itemData.price <= 0) {
-                showNotification('Please enter valid price', 'error');
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
-                return;
-            }
-            
-            try {
-                if (editingItemId) {
-                    console.log('🔄 Updating item:', editingItemId);
-                    await api.updateMenuItem(editingItemId, itemData);
-                    showNotification('Item updated successfully!');
-                } else {
-                    console.log('➕ Adding new item...');
-                    await api.addMenuItem(itemData);
-                    showNotification('Item added successfully!');
-                }
-                
-                closeItemModal();
-                await loadMenuItems();
-            } catch (error) {
-                console.error('❌ Error saving item:', error);
-                showNotification('Failed to save: ' + error.message, 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = originalText;
-            }
-        });
-        
-        console.log('✅ Form listener attached successfully');
+    document.getElementById('modal-title').textContent = 'Edit Item';
+    document.getElementById('submit-btn-text').textContent = 'Update Item';
+    document.getElementById('item-name').value = item.name;
+    document.getElementById('item-price').value = item.price;
+    document.getElementById('item-category').value = item.category || '';
+    document.getElementById('item-description').value = item.description || '';
+    
+    if (item.image_url) {
+        document.getElementById('item-image-url').value = item.image_url;
+        displayItemImagePreview(item.image_url);
+        switchItemUploadTab('url');
     } else {
-        console.error('❌ Item form not found!');
+        resetItemImagePreview();
+        switchItemUploadTab('upload');
     }
     
-    // ==================== MODAL CLOSE ON OUTSIDE CLICK ====================
-    
-    const itemModal = document.getElementById('item-modal');
-    if (itemModal) {
-        itemModal.addEventListener('click', function(event) {
-            // Check if click was directly on modal background (not on content)
-            if (event.target === itemModal) {
-                console.log('🚪 Closing modal (outside click)');
-                closeItemModal();
-            }
-        });
-        console.log('✅ Modal outside-click listener attached');
-    }
-    
-    // ==================== ESC KEY TO CLOSE MODAL ====================
-    
-    document.addEventListener('keydown', function(event) {
-        if (event.key === 'Escape') {
-            const modal = document.getElementById('item-modal');
-            if (modal && modal.classList.contains('active')) {
-                console.log('🚪 Closing modal (ESC key)');
-                closeItemModal();
-            }
-        }
-    });
-    console.log('✅ ESC key listener attached');
-});
-</script>
+    document.getElementById('item-modal').classList.add('active');
+}
 
-    <script>
-    const profileModalHTML = `
-    <div id="profile-modal" class="modal" style="display: none;">
-    <div class="modal-content" style="max-width: 500px;">
-        <div class="modal-header">
-            <h2>My Profile</h2>
-            <span class="close-modal" onclick="closeProfileModal()">&times;</span>
-        </div>
+async function deleteItem(itemId, itemName) {
+    if (!confirm(`Are you sure you want to delete "${itemName}"?`)) {
+        return;
+    }
+
+    try {
+        const result = await api.deleteMenuItem(itemId);
         
-        <div style="padding: 1.5rem;">
-            <!-- Profile Picture Section -->
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <div id="profile-avatar-large" style="
-                    width: 120px;
-                    height: 120px;
-                    border-radius: 50%;
-                    background: linear-gradient(135deg, #0e6253, #ffc107);
-                    display: inline-flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 3rem;
-                    color: white;
-                    font-weight: bold;
-                    margin-bottom: 1rem;
-                ">U</div>
-                
+        if (result.soft_delete) {
+            showNotification(result.message);
+        } else {
+            showNotification('✅ Item deleted successfully!');
+        }
+        
+        await loadMenuItems();
+        updateStats();
+    } catch (error) {
+        console.error('Error deleting item:', error);
+        showNotification('Failed to delete: ' + error.message, 'error');
+    }
+}
+
+async function toggleAvailability(itemId, isAvailable) {
+    try {
+        await api.toggleMenuItemAvailability(itemId, isAvailable);
+        showNotification('✅ Availability updated successfully!');
+        await loadMenuItems();
+    } catch (error) {
+        console.error('Error updating availability:', error);
+        showNotification('Failed to update availability', 'error');
+        await loadMenuItems();
+    }
+}
+
+// ==================== DATA LOADING ====================
+async function loadOutletStatus() {
+    try {
+        const status = await api.request('/vendor/status');
+        const statusText = document.getElementById('status-text');
+        const toggleBtn = document.getElementById('toggle-status-btn');
+        
+        if (status.is_online) {
+            statusText.innerHTML = '🟢 <strong>LIVE</strong> - Accepting orders';
+            statusText.style.color = '#00b894';
+            toggleBtn.style.background = '#d63031';
+            document.getElementById('toggle-text').textContent = 'Go Offline';
+        } else {
+            statusText.innerHTML = '🔴 <strong>OFFLINE</strong> - Not accepting orders';
+            statusText.style.color = '#d63031';
+            toggleBtn.style.background = '#00b894';
+            document.getElementById('toggle-text').textContent = 'Go Live';
+        }
+    } catch (error) {
+        console.error('Failed to load status:', error);
+    }
+}
+
+async function toggleOutletStatus() {
+    try {
+        const response = await api.request('/vendor/toggle-status', { method: 'PATCH' });
+        showNotification(response.message);
+        await loadOutletStatus();
+    } catch (error) {
+        showNotification('Failed to toggle status: ' + error.message, 'error');
+    }
+}
+
+async function loadOrders() {
+    try {
+        currentOrders = await api.getVendorOrders();
+        separateOrders();
+        displayTodayOrders();
+        updateStats();
+    } catch (error) {
+        console.error('Error loading orders:', error);
+        document.getElementById('orders-list').innerHTML = `
+            <div class="empty-state">
+                <p style="color: red;">Error: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function separateOrders() {
+    const today = new Date().toISOString().split('T')[0];
+    
+    todayOrders = currentOrders.filter(order => {
+        const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+        return orderDate === today;
+    });
+
+    pastOrders = currentOrders.filter(order => {
+        const orderDate = new Date(order.created_at).toISOString().split('T')[0];
+        return orderDate < today;
+    });
+}
+
+function displayTodayOrders() {
+    const container = document.getElementById('orders-list');
+    
+    if (todayOrders.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No orders for today yet.</p></div>';
+        return;
+    }
+
+    container.innerHTML = todayOrders.map(order => createOrderCard(order)).join('');
+}
+
+function createOrderCard(order) {
+    const orderDate = new Date(order.created_at).toLocaleString('en-IN');
+    
+    const itemsHTML = order.items.map(item => `
+        <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #e0e0e0;">
+            <span>${item.name} (${item.qty}×)</span>
+            <span>₹${(parseFloat(item.price) * item.qty).toFixed(2)}</span>
+        </div>
+    `).join('');
+
+    return `
+        <div class="order-card">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
                 <div>
-                    <input type="file" id="profile-pic-upload" accept="image/*" style="display: none;">
-                    <button onclick="document.getElementById('profile-pic-upload').click()" 
-                            class="btn-secondary" style="
-                        background: white;
-                        color: #0e6253;
-                        padding: 8px 20px;
-                        border: 2px solid #0e6253;
-                        border-radius: 8px;
-                        cursor: pointer;
-                        font-weight: 600;
-                    ">
-                        Change Profile Picture
+                    <div style="font-weight: bold; color: #0e6253; font-size: 1.2rem;">Token: ${order.token}</div>
+                    <small style="color: #666;">${orderDate}</small>
+                </div>
+                <span style="padding: 5px 10px; background: #e8f5e8; color: #2d5a2d; border-radius: 15px; font-size: 12px; font-weight: bold;">${order.status.toUpperCase()}</span>
+            </div>
+            
+            <div style="margin: 1rem 0; padding: 1rem; background: #f9f9f9; border-radius: 5px;">
+                <strong>Items:</strong>
+                ${itemsHTML}
+                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; padding-top: 0.5rem; border-top: 2px solid #0e6253;">
+                    <strong>Total</strong>
+                    <strong>₹${parseFloat(order.total_amount).toFixed(2)}</strong>
+                </div>
+            </div>
+
+            <label style="display: flex; align-items: center; gap: 10px;">
+                <strong>Status:</strong>
+                <select style="padding: 8px 12px; border: 2px solid #0e6253; border-radius: 5px;" onchange="updateOrderStatus(${order.id}, this.value)">
+                    <option value="pending" ${order.status === 'pending' ? 'selected' : ''}>Pending</option>
+                    <option value="confirmed" ${order.status === 'confirmed' ? 'selected' : ''}>Confirmed</option>
+                    <option value="preparing" ${order.status === 'preparing' ? 'selected' : ''}>Preparing</option>
+                    <option value="ready" ${order.status === 'ready' ? 'selected' : ''}>Ready</option>
+                    <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
+                </select>
+            </label>
+        </div>
+    `;
+}
+
+async function updateOrderStatus(orderId, status) {
+    try {
+        await api.updateOrderStatus(orderId, status);
+        showNotification('✅ Order status updated!');
+        await loadOrders();
+    } catch (error) {
+        console.error('Error updating order status:', error);
+        showNotification('Failed to update order status', 'error');
+        await loadOrders();
+    }
+}
+
+async function refreshOrders() {
+    await loadOrders();
+    showNotification('Orders refreshed!');
+}
+
+async function loadMenuItems() {
+    try {
+        currentMenuItems = await api.getVendorMenuItems();
+        console.log('📋 Loaded menu items:', currentMenuItems.length);
+        displayMenuItems(currentMenuItems);
+        updateStats();
+    } catch (error) {
+        console.error('Error loading menu items:', error);
+        document.getElementById('menu-items').innerHTML = `
+            <div class="empty-state">
+                <p style="color: red;">Error: ${error.message}</p>
+            </div>
+        `;
+    }
+}
+
+function displayMenuItems(items) {
+    const container = document.getElementById('menu-items');
+    
+    if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No menu items yet. Click "Add New Item" to get started!</p></div>';
+        return;
+    }
+    
+    container.innerHTML = items.map(item => {
+        const imageHTML = item.image_url 
+            ? `<img src="${item.image_url}" class="vendor-menu-item-img" alt="${item.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+               <div class="vendor-menu-item-img-placeholder" style="display: none;">🍽️</div>`
+            : `<div class="vendor-menu-item-img-placeholder">🍽️</div>`;
+        
+        return `
+            <div class="menu-card">
+                ${imageHTML}
+                <div class="menu-card-info">
+                    <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
+                    <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
+                    ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
+                </div>
+                <div class="menu-card-actions">
+                    <label class="switch">
+                        <input type="checkbox" 
+                               ${item.is_available ? 'checked' : ''} 
+                               onchange="toggleAvailability(${item.id}, this.checked)">
+                        <span class="switch-slider"></span>
+                    </label>
+                    <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
+                    <button class="btn-edit" onclick="editItem(${item.id})">
+                        <ion-icon name="create-outline"></ion-icon> Edit
+                    </button>
+                    <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name.replace(/'/g, "\\'")}')">
+                        <ion-icon name="trash-outline"></ion-icon> Delete
                     </button>
                 </div>
             </div>
-            
-            <!-- Email Verification Status -->
-            <div id="verification-status" style="
-                padding: 1rem;
-                border-radius: 8px;
-                margin-bottom: 1.5rem;
-                text-align: center;
-            "></div>
-            
-            <!-- Profile Form -->
-            <form id="profile-update-form">
-                <div class="form-group">
-                    <label for="profile-name">Full Name</label>
-                    <input type="text" id="profile-name" required style="
-                        width: 100%;
-                        padding: 12px;
-                        border: 2px solid #ddd;
-                        border-radius: 8px;
-                        font-size: 16px;
-                    ">
-                </div>
-                
-                <div class="form-group">
-                    <label for="profile-email">Email</label>
-                    <input type="email" id="profile-email" required style="
-                        width: 100%;
-                        padding: 12px;
-                        border: 2px solid #ddd;
-                        border-radius: 8px;
-                        font-size: 16px;
-                    ">
-                    <small style="color: #666; display: block; margin-top: 5px;">
-                        Changing your email will require re-verification
-                    </small>
-                </div>
-                
-                <button type="submit" class="btn-primary" style="
-                    width: 100%;
-                    padding: 12px;
-                    background: #0e6253;
-                    color: white;
-                    border: none;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 16px;
-                    font-weight: 600;
-                ">
-                    Update Profile
-                </button>
-            </form>
-            
-            <hr style="margin: 2rem 0; border: none; border-top: 1px solid #eee;">
-            
-            <!-- Password Section -->
-            <div style="text-align: center;">
-                <p style="color: #666; margin-bottom: 1rem;">
-                    Want to change your password?
-                </p>
-                <a href="settings.html" class="btn-secondary" style="
-                    display: inline-block;
-                    padding: 10px 20px;
-                    background: #ffc107;
-                    color: #333;
-                    text-decoration: none;
-                    border-radius: 8px;
-                    font-weight: 600;
-                ">
-                    Go to Settings
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    background-color: rgba(0,0,0,0.5);
-    align-items: center;
-    justify-content: center;
-}
-
-.modal.active {
-    display: flex;
-}
-
-.modal-content {
-    background: white;
-    padding: 0;
-    border-radius: 15px;
-    max-width: 500px;
-    width: 90%;
-    max-height: 90vh;
-    overflow-y: auto;
-}
-
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 1.5rem;
-    border-bottom: 1px solid #eee;
-}
-
-.modal-header h2 {
-    margin: 0;
-    color: #0e6253;
-}
-
-.close-modal {
-    font-size: 2rem;
-    cursor: pointer;
-    color: #666;
-    line-height: 1;
-}
-
-.close-modal:hover {
-    color: #000;
-}
-
-.form-group {
-    margin-bottom: 1.5rem;
-}
-
-.form-group label {
-    display: block;
-    margin-bottom: 0.5rem;
-    font-weight: 600;
-    color: #333;
-}
-</style>
-`;
-
-// Add modal to page
-document.addEventListener('DOMContentLoaded', () => {
-    document.body.insertAdjacentHTML('beforeend', profileModalHTML);
-});
-
-// Profile Modal Functions
-function openProfileModal() {
-    const user = auth.getCurrentUser();
-    if (!user) return;
-    
-    // Update avatar
-    const avatar = document.getElementById('profile-avatar-large');
-    const initials = user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
-    avatar.textContent = initials;
-    
-    // Update form fields
-    document.getElementById('profile-name').value = user.name;
-    document.getElementById('profile-email').value = user.email;
-    
-    // Update verification status
-    const statusDiv = document.getElementById('verification-status');
-    if (user.email_verified) {
-        statusDiv.style.background = '#e8f5e8';
-        statusDiv.style.border = '1px solid #00b894';
-        statusDiv.innerHTML = `
-            <strong style="color: #00b894;">✓ Email Verified</strong>
-            <p style="margin: 5px 0 0; color: #666; font-size: 14px;">
-                Your email is verified and your account is fully active
-            </p>
         `;
-    } else {
-        statusDiv.style.background = '#fff3cd';
-        statusDiv.style.border = '1px solid #ffc107';
-        statusDiv.innerHTML = `
-            <strong style="color: #856404;">⚠ Email Not Verified</strong>
-            <p style="margin: 5px 0 10px; color: #666; font-size: 14px;">
-                Please verify your email to access all features
-            </p>
-            <button onclick="resendVerification()" style="
-                background: #0e6253;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 5px;
-                cursor: pointer;
-                font-weight: 600;
-            ">
-                Resend Verification Email
-            </button>
-        `;
+    }).join('');
+}
+
+function updateStats() {
+    document.getElementById('total-orders').textContent = currentOrders.length;
+    document.getElementById('today-orders').textContent = todayOrders.length;
+    document.getElementById('menu-items-count').textContent = currentMenuItems.length;
+}
+
+// ==================== SECTION SWITCHING ====================
+function showSection(section) {
+    document.getElementById('orders-section').style.display = 'none';
+    document.getElementById('menu-section').style.display = 'none';
+    
+    if (section === 'orders') {
+        document.getElementById('orders-section').style.display = 'block';
+        loadOrders();
+    } else if (section === 'menu') {
+        document.getElementById('menu-section').style.display = 'block';
+        loadMenuItems();
     }
-    
-    document.getElementById('profile-modal').classList.add('active');
 }
 
-function closeProfileModal() {
-    document.getElementById('profile-modal').classList.remove('active');
-}
-
-// Update profile dropdown to trigger modal
-function setupProfileDropdown() {
-    const profileIcon = document.querySelector('.user');
-    if (!profileIcon) return;
-
-    const dropdown = document.createElement('div');
-    dropdown.className = 'profile-dropdown';
-    dropdown.innerHTML = `
-        <div class="profile-info">
-            <div class="profile-avatar">${auth.getCurrentUser() ? getInitials() : 'U'}</div>
-            <div class="profile-details">
-                <strong id="dropdown-name">Loading...</strong>
-                <small id="dropdown-email">Loading...</small>
-            </div>
-        </div>
-        <div class="profile-menu">
-            <a href="#" onclick="openProfileModal(); return false;" class="profile-menu-item">
-                <ion-icon name="person-outline"></ion-icon>
-                My Profile
-            </a>
-            <a href="settings.html" class="profile-menu-item">
-                <ion-icon name="settings-outline"></ion-icon>
-                Settings
-            </a>
-            <a href="#" onclick="auth.logout()" class="profile-menu-item">
-                <ion-icon name="log-out-outline"></ion-icon>
-                Logout
-            </a>
-        </div>
+// ==================== UTILITY FUNCTIONS ====================
+function showNotification(message, type = 'success') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: ${type === 'success' ? '#00b894' : '#d63031'};
+        color: white;
+        padding: 15px 20px;
+        border-radius: 8px;
+        z-index: 10000;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+        animation: slideIn 0.3s ease;
     `;
+    notification.textContent = message;
+    document.body.appendChild(notification);
     
-    profileIcon.parentElement.style.position = 'relative';
-    profileIcon.parentElement.appendChild(dropdown);
-
-    profileIcon.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdown.classList.toggle('active');
-        
-        const user = auth.getCurrentUser();
-        if (user) {
-            document.getElementById('dropdown-name').textContent = user.name;
-            document.getElementById('dropdown-email').textContent = user.email;
-        }
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!profileIcon.contains(e.target) && !dropdown.contains(e.target)) {
-            dropdown.classList.remove('active');
-        }
-    });
+    setTimeout(() => {
+        notification.style.animation = 'slideOut 0.3s ease';
+        setTimeout(() => notification.remove(), 300);
+    }, 3000);
 }
 
-function getInitials() {
-    const user = auth.getCurrentUser();
-    if (user && user.name) {
-        return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+// Add CSS for animations
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
     }
-    return 'U';
-}
+    @keyframes slideOut {
+        from { transform: translateX(0); opacity: 1; }
+        to { transform: translateX(100%); opacity: 0; }
+    }
+    .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 24px;
+    }
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+    .switch-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: .4s;
+        border-radius: 24px;
+    }
+    .switch-slider:before {
+        position: absolute;
+        content: "";
+        height: 16px;
+        width: 16px;
+        left: 4px;
+        bottom: 4px;
+        background-color: white;
+        transition: .4s;
+        border-radius: 50%;
+    }
+    input:checked + .switch-slider {
+        background-color: #00b894;
+    }
+    input:checked + .switch-slider:before {
+        transform: translateX(26px);
+    }
+`;
+document.head.appendChild(style);
 
-// Handle profile form submission
-document.addEventListener('DOMContentLoaded', () => {
-    const profileForm = document.getElementById('profile-update-form');
-    if (profileForm) {
-        profileForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const name = document.getElementById('profile-name').value.trim();
-            const email = document.getElementById('profile-email').value.trim();
-            
-            if (!name || !email) {
-                alert('Please fill in all fields');
-                return;
-            }
-            
-            try {
-                const response = await api.updateProfile({ name, email });
-                
-                // Update local user data
-                const user = auth.getCurrentUser();
-                user.name = name;
-                user.email = email;
-                if (response.user.email_verified !== undefined) {
-                    user.email_verified = response.user.email_verified;
-                }
-                localStorage.setItem('user', JSON.stringify(user));
-                
-                alert(response.message || 'Profile updated successfully!');
-                closeProfileModal();
-                
-                // Refresh page to show updated info
-                location.reload();
-            } catch (error) {
-                alert('Failed to update profile: ' + error.message);
-            }
-        });
-    }
-    
-    // Handle profile picture upload
-    const picUpload = document.getElementById('profile-pic-upload');
-    if (picUpload) {
-        picUpload.addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    document.getElementById('profile-avatar-large').style.backgroundImage = 
-                        `url(${event.target.result})`;
-                    document.getElementById('profile-avatar-large').style.backgroundSize = 'cover';
-                    document.getElementById('profile-avatar-large').style.backgroundPosition = 'center';
-                    document.getElementById('profile-avatar-large').textContent = '';
-                    
-                    // In production, upload to server
-                    alert('Profile picture updated! (Note: Backend storage not yet implemented)');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
-    }
-});
-
-// Close modal on outside click
-window.addEventListener('click', (event) => {
-    const modal = document.getElementById('profile-modal');
-    if (event.target === modal) {
-        closeProfileModal();
-    }
-});
-
-// Initialize profile dropdown
-document.addEventListener('DOMContentLoaded', setupProfileDropdown);
-    </script>
+console.log('✅ Vendor Dashboard Script Loaded');
+</script>
 </body>
 </html>
