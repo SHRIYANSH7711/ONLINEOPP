@@ -943,6 +943,7 @@
             </button>
         </form>
     </div>
+    </div>
 
     <script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
     <script nomodule src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.js"></script>
@@ -1593,31 +1594,99 @@
             currentItemImageUrl = null;
         }
 
-        document.getElementById('item-form').addEventListener('submit', async (e) => {
-            e.preventDefault();
+        document.addEventListener('DOMContentLoaded', () => {
+            const itemForm = document.getElementById('item-form');
             
-            const itemData = {
-                name: document.getElementById('item-name').value,
-                price: parseFloat(document.getElementById('item-price').value),
-                category: document.getElementById('item-category').value || null,
-                description: document.getElementById('item-description').value || null,
-                image_url: currentItemImageUrl || null
-            };
-            
-            try {
-                if (editingItemId) {
-                    await api.updateMenuItem(editingItemId, itemData);
-                    showNotification('Item updated successfully!');
-                } else {
-                    await api.addMenuItem(itemData);
-                    showNotification('Item added successfully!');
-                }
-                closeItemModal();
-                await loadMenuItems();
-            } catch (error) {
-                console.error('Error saving item:', error);
-                showNotification(error.message, 'error');
+            if (itemForm) {
+                // Remove any existing listeners to prevent duplicates
+                const newForm = itemForm.cloneNode(true);
+                itemForm.parentNode.replaceChild(newForm, itemForm);
+                
+                // Add fresh submit listener
+                document.getElementById('item-form').addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Form submitted!'); // Debug log
+                     
+                    // Disable submit button to prevent double-clicks
+                    const submitBtn = e.target.querySelector('button[type="submit"]');
+                    if (submitBtn) {
+                        submitBtn.disabled = true;
+                        submitBtn.textContent = 'Saving...';
+                    }
+                    
+                    const itemData = {
+                        name: document.getElementById('item-name').value.trim(),
+                        price: parseFloat(document.getElementById('item-price').value),
+                        category: document.getElementById('item-category').value || null,
+                        description: document.getElementById('item-description').value.trim() || null,
+                        image_url: currentItemImageUrl || null
+                    };
+                    
+                    // Validation
+                    if (!itemData.name) {
+                        showNotification('Please enter item name', 'error');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = editingItemId ? 'Update Item' : 'Add Item';
+                        }
+                        return;
+                    }
+                    
+                    if (!itemData.price || itemData.price <= 0) {
+                        showNotification('Please enter valid price', 'error');
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = editingItemId ? 'Update Item' : 'Add Item';
+                        }
+                        return;
+                    }
+                    
+                    console.log('Submitting item data:', itemData); // Debug log
+                     
+                    try {
+                        if (editingItemId) {
+                            await api.updateMenuItem(editingItemId, itemData);
+                            showNotification('Item updated successfully!');
+                        } else {
+                            await api.addMenuItem(itemData);
+                            showNotification('Item added successfully!');
+                        }
+                        
+                        closeItemModal();
+                        await loadMenuItems();
+                    } catch (error) {
+                        console.error('Error saving item:', error);
+                        showNotification('Failed to save: ' + error.message, 'error');
+                    } finally {
+                        // Re-enable button
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = editingItemId ? 'Update Item' : 'Add Item';
+                        }
+                    }
+                });
             }
+            
+            // ✅ Close modal on outside click
+            const itemModal = document.getElementById('item-modal');
+            if (itemModal) {
+                itemModal.addEventListener('click', function(event) {
+                    if (event.target === itemModal) {
+                        closeItemModal();
+                    }
+                });
+            }
+            
+            // ✅ Close modal on ESC key
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    const modal = document.getElementById('item-modal');
+                    if (modal && modal.classList.contains('active')) {
+                        closeItemModal();
+                    }
+                }
+            });
         });
 
         async function deleteItem(itemId, itemName) {
