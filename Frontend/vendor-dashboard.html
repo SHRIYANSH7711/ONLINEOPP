@@ -953,13 +953,15 @@
     <script src="js/image-upload.js"></script>
     <script src="js/brand.js"></script>
     <script>
-    // ==================== GLOBAL VARIABLES ====================
+// ==================== GLOBAL VARIABLES ====================
 let currentOrders = [];
 let todayOrders = [];
 let pastOrders = [];
 let currentMenuItems = [];
 let currentOrderFilter = 'all';
 let editingItemId = null;
+let currentProfileImageUrl = null;
+let currentUploadMethod = 'upload';
 let currentItemImageUrl = null;
 let currentItemUploadMethod = 'upload';
 
@@ -974,15 +976,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     await loadOutletStatus();
     await loadOrders();
-    await loadMenuItems();
     updateStats();
     startAutoRefresh();
     
-    // Setup form handler - IMPORTANT!
+    // Setup all handlers
     setupFormHandler();
-    
-    // Setup modal handlers
     setupModalHandlers();
+    setupUPIFormHandler();
+    loadVendorSettings();
+    loadVendorProfileImage();
     
     console.log('✅ Initialization complete');
 });
@@ -991,7 +993,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 function startAutoRefresh() {
     setInterval(() => {
         loadOrders();
-    }, 30000); // Refresh every 30 seconds
+    }, 30000);
+}
+
+// ==================== OUTLET STATUS ====================
+async function loadOutletStatus() {
+    try {
+        const status = await api.request('/vendor/status');
+        const statusText = document.getElementById('status-text');
+        const toggleBtn = document.getElementById('toggle-status-btn');
+        
+        if (status.is_online) {
+            statusText.innerHTML = '🟢 <strong>LIVE</strong> - Accepting orders';
+            statusText.style.color = '#00b894';
+            toggleBtn.style.background = '#d63031';
+            document.getElementById('toggle-text').textContent = 'Go Offline';
+        } else {
+            statusText.innerHTML = '🔴 <strong>OFFLINE</strong> - Not accepting orders';
+            statusText.style.color = '#d63031';
+            toggleBtn.style.background = '#00b894';
+            document.getElementById('toggle-text').textContent = 'Go Live';
+        }
+    } catch (error) {
+        console.error('Failed to load status:', error);
+    }
+}
+
+async function toggleOutletStatus() {
+    try {
+        const response = await api.request('/vendor/toggle-status', { method: 'PATCH' });
+        alert(response.message);
+        await loadOutletStatus();
+    } catch (error) {
+        alert('Failed to toggle status: ' + error.message);
+    }
 }
 
 // ==================== FORM HANDLER (CRITICAL FIX) ====================
@@ -1005,7 +1040,6 @@ function setupFormHandler() {
     
     console.log('✅ Setting up form handler...');
     
-    // Use onsubmit to ensure it only attaches once
     itemForm.onsubmit = async (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -1015,7 +1049,6 @@ function setupFormHandler() {
         const submitBtn = itemForm.querySelector('button[type="submit"]');
         const originalText = submitBtn.innerHTML;
         
-        // Disable button
         submitBtn.disabled = true;
         submitBtn.innerHTML = '<ion-icon name="hourglass-outline"></ion-icon> Saving...';
         
@@ -1029,16 +1062,15 @@ function setupFormHandler() {
         
         console.log('📦 Item data:', itemData);
         
-        // Validation
         if (!itemData.name) {
-            alert('Please enter item name');
+            showNotification('Please enter item name', 'error');
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
             return;
         }
         
         if (!itemData.price || itemData.price <= 0) {
-            alert('Please enter valid price');
+            showNotification('Please enter valid price', 'error');
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
             return;
@@ -1048,60 +1080,50 @@ function setupFormHandler() {
             if (editingItemId) {
                 console.log('🔄 Updating item:', editingItemId);
                 await api.updateMenuItem(editingItemId, itemData);
-                showNotification('✅ Item updated successfully!');
+                showNotification('Item updated successfully!');
             } else {
                 console.log('➕ Adding new item...');
                 await api.addMenuItem(itemData);
-                showNotification('✅ Item added successfully!');
+                showNotification('Item added successfully!');
             }
             
             closeItemModal();
             await loadMenuItems();
-            updateStats();
         } catch (error) {
             console.error('❌ Save error:', error);
-            alert('Failed to save: ' + error.message);
+            showNotification('Failed to save: ' + error.message, 'error');
         } finally {
             submitBtn.disabled = false;
             submitBtn.innerHTML = originalText;
         }
     };
     
-    console.log('✅ Form handler attached successfully');
+    console.log('✅ Form handler attached');
 }
 
-// ==================== MODAL HANDLERS (CRITICAL FIX) ====================
+// ==================== MODAL HANDLERS ====================
 function setupModalHandlers() {
     const itemModal = document.getElementById('item-modal');
     
-    if (!itemModal) {
-        console.error('❌ Modal not found!');
-        return;
+    if (itemModal) {
+        itemModal.onclick = function(event) {
+            if (event.target === itemModal) {
+                closeItemModal();
+            }
+        };
     }
     
-    // Click outside to close
-    itemModal.onclick = function(event) {
-        if (event.target === itemModal) {
-            console.log('🚪 Closing modal (outside click)');
-            closeItemModal();
-        }
-    };
-    
-    // ESC key to close
     document.onkeydown = function(event) {
         if (event.key === 'Escape') {
             const modal = document.getElementById('item-modal');
             if (modal && modal.classList.contains('active')) {
-                console.log('🚪 Closing modal (ESC key)');
                 closeItemModal();
             }
         }
     };
-    
-    console.log('✅ Modal handlers attached');
 }
 
-// ==================== IMAGE UPLOAD FUNCTIONS ====================
+// ==================== ITEM IMAGE UPLOAD FUNCTIONS ====================
 function switchItemUploadTab(method) {
     currentItemUploadMethod = method;
     const uploadTab = document.getElementById('item-upload-tab');
@@ -1154,6 +1176,8 @@ async function uploadItemImageFile(file) {
             progressDiv.style.display = 'none';
             progressBar.style.width = '0%';
         }, 2000);
+        
+        showNotification('Image uploaded! Click "Add Item" to save.');
     } catch (error) {
         console.error('Upload error:', error);
         progressText.textContent = '❌ Upload failed';
@@ -1206,9 +1230,8 @@ function resetItemImagePreview() {
     document.getElementById('item-image-preview').innerHTML = '<span style="font-size: 4rem; color: #ccc;">🍽️</span>';
 }
 
-// ==================== MODAL OPEN/CLOSE ====================
+// ==================== MODAL FUNCTIONS ====================
 function openAddItemModal() {
-    console.log('📂 Opening add item modal');
     editingItemId = null;
     currentItemImageUrl = null;
     
@@ -1224,7 +1247,6 @@ function openAddItemModal() {
 }
 
 function closeItemModal() {
-    console.log('📂 Closing modal');
     document.getElementById('item-modal').classList.remove('active');
     document.getElementById('item-form').reset();
     document.getElementById('item-image-url').value = '';
@@ -1237,7 +1259,6 @@ function editItem(itemId) {
     const item = currentMenuItems.find(i => i.id === itemId);
     if (!item) return;
     
-    console.log('✏️ Editing item:', itemId);
     editingItemId = itemId;
     currentItemImageUrl = item.image_url;
     
@@ -1271,62 +1292,29 @@ async function deleteItem(itemId, itemName) {
         if (result.soft_delete) {
             showNotification(result.message);
         } else {
-            showNotification('✅ Item deleted successfully!');
+            showNotification('Item deleted successfully!');
         }
         
         await loadMenuItems();
-        updateStats();
     } catch (error) {
         console.error('Error deleting item:', error);
-        showNotification('Failed to delete: ' + error.message, 'error');
+        showNotification(error.message, 'error');
     }
 }
 
 async function toggleAvailability(itemId, isAvailable) {
     try {
         await api.toggleMenuItemAvailability(itemId, isAvailable);
-        showNotification('✅ Availability updated successfully!');
+        showNotification('Availability updated successfully!');
         await loadMenuItems();
     } catch (error) {
         console.error('Error updating availability:', error);
-        showNotification('Failed to update availability', 'error');
+        showNotification('Failed to update item availability', 'error');
         await loadMenuItems();
     }
 }
 
-// ==================== DATA LOADING ====================
-async function loadOutletStatus() {
-    try {
-        const status = await api.request('/vendor/status');
-        const statusText = document.getElementById('status-text');
-        const toggleBtn = document.getElementById('toggle-status-btn');
-        
-        if (status.is_online) {
-            statusText.innerHTML = '🟢 <strong>LIVE</strong> - Accepting orders';
-            statusText.style.color = '#00b894';
-            toggleBtn.style.background = '#d63031';
-            document.getElementById('toggle-text').textContent = 'Go Offline';
-        } else {
-            statusText.innerHTML = '🔴 <strong>OFFLINE</strong> - Not accepting orders';
-            statusText.style.color = '#d63031';
-            toggleBtn.style.background = '#00b894';
-            document.getElementById('toggle-text').textContent = 'Go Live';
-        }
-    } catch (error) {
-        console.error('Failed to load status:', error);
-    }
-}
-
-async function toggleOutletStatus() {
-    try {
-        const response = await api.request('/vendor/toggle-status', { method: 'PATCH' });
-        showNotification(response.message);
-        await loadOutletStatus();
-    } catch (error) {
-        showNotification('Failed to toggle status: ' + error.message, 'error');
-    }
-}
-
+// ==================== ORDERS MANAGEMENT ====================
 async function loadOrders() {
     try {
         currentOrders = await api.getVendorOrders();
@@ -1357,19 +1345,47 @@ function separateOrders() {
     });
 }
 
+function filterTodayOrders(status) {
+    currentOrderFilter = status;
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    displayTodayOrders();
+}
+
 function displayTodayOrders() {
     const container = document.getElementById('orders-list');
+    let ordersToShow = todayOrders;
     
-    if (todayOrders.length === 0) {
+    if (currentOrderFilter !== 'all') {
+        ordersToShow = todayOrders.filter(o => o.status === currentOrderFilter);
+    }
+
+    if (ordersToShow.length === 0) {
         container.innerHTML = '<div class="empty-state"><p>No orders for today yet.</p></div>';
         return;
     }
 
-    container.innerHTML = todayOrders.map(order => createOrderCard(order)).join('');
+    container.innerHTML = ordersToShow.map(order => createOrderCard(order, false)).join('');
 }
 
-function createOrderCard(order) {
+function displayPastOrders() {
+    const container = document.getElementById('past-orders-list');
+    
+    if (pastOrders.length === 0) {
+        container.innerHTML = '<div class="empty-state"><p>No past orders.</p></div>';
+        return;
+    }
+
+    container.innerHTML = pastOrders.map(order => createOrderCard(order, true)).join('');
+}
+
+function createOrderCard(order, isPast) {
     const orderDate = new Date(order.created_at).toLocaleString('en-IN');
+    const orderDay = new Date(order.created_at).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
     
     const itemsHTML = order.items.map(item => `
         <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid #e0e0e0;">
@@ -1380,9 +1396,12 @@ function createOrderCard(order) {
 
     return `
         <div class="order-card">
-            <div style="display: flex; justify-content: space-between; margin-bottom: 1rem;">
+            <div class="order-header">
                 <div>
-                    <div style="font-weight: bold; color: #0e6253; font-size: 1.2rem;">Token: ${order.token}</div>
+                    <div class="order-token">
+                        Token: ${order.token}
+                        ${isPast ? `<span class="order-date-badge">${orderDay}</span>` : ''}
+                    </div>
                     <small style="color: #666;">${orderDate}</small>
                 </div>
                 <span style="padding: 5px 10px; background: #e8f5e8; color: #2d5a2d; border-radius: 15px; font-size: 12px; font-weight: bold;">${order.status.toUpperCase()}</span>
@@ -1397,6 +1416,7 @@ function createOrderCard(order) {
                 </div>
             </div>
 
+            ${!isPast ? `
             <label style="display: flex; align-items: center; gap: 10px;">
                 <strong>Status:</strong>
                 <select style="padding: 8px 12px; border: 2px solid #0e6253; border-radius: 5px;" onchange="updateOrderStatus(${order.id}, this.value)">
@@ -1407,6 +1427,7 @@ function createOrderCard(order) {
                     <option value="completed" ${order.status === 'completed' ? 'selected' : ''}>Completed</option>
                 </select>
             </label>
+            ` : ''}
         </div>
     `;
 }
@@ -1414,7 +1435,7 @@ function createOrderCard(order) {
 async function updateOrderStatus(orderId, status) {
     try {
         await api.updateOrderStatus(orderId, status);
-        showNotification('✅ Order status updated!');
+        showNotification('Order status updated successfully!');
         await loadOrders();
     } catch (error) {
         console.error('Error updating order status:', error);
@@ -1428,10 +1449,10 @@ async function refreshOrders() {
     showNotification('Orders refreshed!');
 }
 
+// ==================== MENU MANAGEMENT ====================
 async function loadMenuItems() {
     try {
         currentMenuItems = await api.getVendorMenuItems();
-        console.log('📋 Loaded menu items:', currentMenuItems.length);
         displayMenuItems(currentMenuItems);
         updateStats();
     } catch (error) {
@@ -1454,59 +1475,494 @@ function displayMenuItems(items) {
     
     container.innerHTML = items.map(item => {
         const imageHTML = item.image_url 
-            ? `<img src="${item.image_url}" class="vendor-menu-item-img" alt="${item.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
-               <div class="vendor-menu-item-img-placeholder" style="display: none;">🍽️</div>`
-            : `<div class="vendor-menu-item-img-placeholder">🍽️</div>`;
+        ? `<img src="${item.image_url}" 
+           class="vendor-menu-item-img" 
+           alt="${item.name}"
+           onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+           <div class="vendor-menu-item-img-placeholder" style="display: none;">🍽️</div>`
+        : `<div class="vendor-menu-item-img-placeholder">🍽️</div>`;
         
         return `
-            <div class="menu-card">
-                ${imageHTML}
-                <div class="menu-card-info">
-                    <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
-                    <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
-                    ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
-                </div>
-                <div class="menu-card-actions">
-                    <label class="switch">
-                        <input type="checkbox" 
-                               ${item.is_available ? 'checked' : ''} 
-                               onchange="toggleAvailability(${item.id}, this.checked)">
-                        <span class="switch-slider"></span>
-                    </label>
-                    <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
-                    <button class="btn-edit" onclick="editItem(${item.id})">
-                        <ion-icon name="create-outline"></ion-icon> Edit
-                    </button>
-                    <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name.replace(/'/g, "\\'")}')">
-                        <ion-icon name="trash-outline"></ion-icon> Delete
-                    </button>
-                </div>
+        <div class="menu-card">
+            ${imageHTML}
+            <div class="menu-card-info">
+                <h4 style="margin: 0 0 0.5rem 0; color: #0e6253;">${item.name}</h4>
+                <p style="margin: 0; color: #666;">Price: ₹${parseFloat(item.price).toFixed(2)}</p>
+                ${item.category ? `<p style="margin: 0.5rem 0 0; color: #999; font-size: 0.9rem;">Category: ${item.category}</p>` : ''}
             </div>
+            <div class="menu-card-actions">
+                <label class="switch">
+                    <input type="checkbox" 
+                           ${item.is_available ? 'checked' : ''} 
+                           onchange="toggleAvailability(${item.id}, this.checked)">
+                    <span class="switch-slider"></span>
+                </label>
+                <span style="min-width: 80px;">${item.is_available ? 'Available' : 'Unavailable'}</span>
+                <button class="btn-edit" onclick="editItem(${item.id})">
+                    <ion-icon name="create-outline"></ion-icon> Edit
+                </button>
+                <button class="btn-danger" onclick="deleteItem(${item.id}, '${item.name.replace(/'/g, "\\'")}')">
+                    <ion-icon name="trash-outline"></ion-icon> Delete
+                </button>
+            </div>
+        </div>
         `;
     }).join('');
 }
 
-function updateStats() {
-    document.getElementById('total-orders').textContent = currentOrders.length;
-    document.getElementById('today-orders').textContent = todayOrders.length;
-    document.getElementById('menu-items-count').textContent = currentMenuItems.length;
+// ==================== WALLET & UPI MANAGEMENT ====================
+async function loadVendorWallet() {
+    try {
+        const walletData = await api.getVendorWallet();
+        
+        document.getElementById('vendor-wallet-balance').textContent = 
+            parseFloat(walletData.balance || 0).toFixed(2);
+        
+        const upiDisplay = document.getElementById('current-upi-display');
+        if (walletData.upi_id) {
+            upiDisplay.textContent = walletData.upi_id;
+            upiDisplay.style.color = '#0e6253';
+            document.getElementById('vendor-upi-input').value = walletData.upi_id;
+        } else {
+            upiDisplay.textContent = 'Not configured - Set your UPI ID below';
+            upiDisplay.style.color = '#dc3545';
+        }
+        
+        displayVendorTransactions(walletData.transactions);
+    } catch (error) {
+        console.error('Wallet load error:', error);
+        showNotification('Failed to load wallet data', 'error');
+    }
+}
+
+function displayVendorTransactions(transactions) {
+    const tbody = document.getElementById('vendor-transactions-list');
+    const noTransactions = document.getElementById('no-transactions');
+    
+    if (!transactions || transactions.length === 0) {
+        tbody.style.display = 'none';
+        noTransactions.style.display = 'block';
+        return;
+    }
+    
+    tbody.style.display = 'table-row-group';
+    noTransactions.style.display = 'none';
+    
+    tbody.innerHTML = transactions.map(txn => {
+        const date = new Date(txn.created_at).toLocaleDateString('en-IN', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        });
+        return `
+        <tr>
+            <td style="color: #000;">${date}</td>
+            <td style="color: #000;">${txn.description}</td>
+            <td style="font-size: 0.85rem; color: #666;">${txn.payment_id || 'N/A'}</td>
+            <td class="transaction-credit" style="text-align: right;">
+                +₹${parseFloat(txn.amount).toFixed(2)}
+            </td>
+        </tr>
+        `;
+    }).join('');
+}
+
+function setupUPIFormHandler() {
+    const upiForm = document.getElementById('upi-form');
+    if (upiForm) {
+        upiForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const upiId = document.getElementById('vendor-upi-input').value.trim();
+            
+            if (!upiId) {
+                showNotification('Please enter a valid UPI ID', 'error');
+                return;
+            }
+            
+            try {
+                const response = await api.updateVendorUPI(upiId);
+                
+                if (response.success) {
+                    document.getElementById('current-upi-display').textContent = upiId;
+                    document.getElementById('current-upi-display').style.color = '#0e6253';
+                    showNotification('UPI ID updated successfully!');
+                }
+            } catch (error) {
+                console.error('UPI update error:', error);
+                showNotification('Failed to update UPI ID', 'error');
+            }
+        });
+    }
+}
+
+function refreshWallet() {
+    loadVendorWallet();
+    showNotification('Wallet refreshed!');
+}
+
+// ==================== VENDOR SETTINGS ====================
+function loadVendorSettings() {
+    const user = auth.getCurrentUser();
+    if (user) {
+        const nameInput = document.getElementById('vendor-name');
+        const emailInput = document.getElementById('vendor-email');
+        if (nameInput) nameInput.value = user.name;
+        if (emailInput) emailInput.value = user.email;
+        updateVendorProfileAvatar(user.name);
+    }
+    
+    const darkMode = localStorage.getItem('vendorDarkMode') === 'true';
+    const notifications = localStorage.getItem('vendorNotifications') !== 'false';
+    const autoRefresh = localStorage.getItem('vendorAutoRefresh') !== 'false';
+    
+    const darkModeToggle = document.getElementById('vendor-dark-mode');
+    const notifToggle = document.getElementById('vendor-notifications');
+    const autoRefreshToggle = document.getElementById('vendor-auto-refresh');
+    
+    if (darkModeToggle) darkModeToggle.checked = darkMode;
+    if (notifToggle) notifToggle.checked = notifications;
+    if (autoRefreshToggle) autoRefreshToggle.checked = autoRefresh;
+    
+    if (darkMode) {
+        document.body.classList.add('dark-mode');
+    }
+}
+
+function updateVendorProfileAvatar(name) {
+    const avatar = document.getElementById('vendor-profile-avatar');
+    if (avatar) {
+        const initials = name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+        avatar.textContent = initials;
+    }
+}
+
+async function updateVendorProfile() {
+    const name = document.getElementById('vendor-name').value.trim();
+    const email = document.getElementById('vendor-email').value.trim();
+    
+    if (!name) {
+        showNotification('Please enter a valid name', 'error');
+        return;
+    }
+    
+    if (!email || !email.includes('@')) {
+        showNotification('Please enter a valid email', 'error');
+        return;
+    }
+    
+    const user = auth.getCurrentUser();
+    const emailChanged = user.email !== email;
+    
+    if (emailChanged) {
+        const confirmed = confirm(
+            '⚠️ IMPORTANT: Changing your email will log you out and require email verification.\n\n' +
+            'You will need to:\n' +
+            '1. Verify the new email address\n' +
+            '2. Login again with the new email\n\n' +
+            'Do you want to continue?'
+        );
+        
+        if (!confirmed) {
+            return;
+        }
+    }
+    
+    try {
+        const response = await api.updateProfile({ name, email });
+        
+        if (emailChanged) {
+            showNotification('Email updated! Please verify your new email address.');
+            
+            user.name = name;
+            user.email = email;
+            user.email_verified = false;
+            localStorage.setItem('user', JSON.stringify(user));
+            
+            setTimeout(() => {
+                alert('You will now be logged out. Please verify your email and login again.');
+                auth.logout();
+            }, 2000);
+        } else {
+            user.name = name;
+            localStorage.setItem('user', JSON.stringify(user));
+            updateVendorProfileAvatar(name);
+            
+            const vendorNameEl = document.querySelector('.main-navbar h2 span');
+            if (vendorNameEl) {
+                vendorNameEl.textContent = name;
+            }
+            
+            showNotification('Profile updated successfully!');
+        }
+    } catch (error) {
+        showNotification('Failed to update profile: ' + error.message, 'error');
+    }
+}
+
+function openVendorPasswordModal() {
+    const modal = document.getElementById('vendor-password-modal');
+    if (modal) modal.style.display = 'flex';
+}
+
+function closeVendorPasswordModal() {
+    const modal = document.getElementById('vendor-password-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        const form = document.getElementById('vendor-password-form');
+        if (form) form.reset();
+    }
+}
+
+function toggleVendorDarkMode() {
+    const isDark = document.getElementById('vendor-dark-mode').checked;
+    localStorage.setItem('vendorDarkMode', isDark);
+    
+    if (isDark) {
+        document.body.classList.add('dark-mode');
+    } else {
+        document.body.classList.remove('dark-mode');
+    }
+}
+
+function toggleVendorNotifications() {
+    const enabled = document.getElementById('vendor-notifications').checked;
+    localStorage.setItem('vendorNotifications', enabled);
+    
+    if (enabled && 'Notification' in window) {
+        Notification.requestPermission();
+    }
+    
+    showNotification(enabled ? 'Notifications enabled' : 'Notifications disabled');
+}
+
+function toggleVendorAutoRefresh() {
+    const enabled = document.getElementById('vendor-auto-refresh').checked;
+    localStorage.setItem('vendorAutoRefresh', enabled);
+    
+    showNotification(enabled ? 'Auto-refresh enabled' : 'Auto-refresh disabled');
+}
+
+// ==================== PROFILE IMAGE MANAGEMENT ====================
+function switchUploadTab(method) {
+    currentUploadMethod = method;
+    const uploadTab = document.getElementById('upload-tab');
+    const urlTab = document.getElementById('url-tab');
+    const uploadSection = document.getElementById('upload-section');
+    const urlSection = document.getElementById('url-section');
+    
+    if (method === 'upload') {
+        uploadTab.classList.add('active');
+        urlTab.classList.remove('active');
+        uploadSection.style.display = 'block';
+        urlSection.style.display = 'none';
+    } else {
+        uploadTab.classList.remove('active');
+        urlTab.classList.add('active');
+        uploadSection.style.display = 'none';
+        urlSection.style.display = 'block';
+    }
+}
+
+async function selectProfileImageFile() {
+            try {
+                const file = await imageUploader.selectFile('image/*');
+                await uploadProfileImageFile(file);
+            } catch (error) {
+                if (error.message !== 'No file selected') {
+                    showNotification('Failed to select image: ' + error.message, 'error');
+                }
+            }
+        }
+        async function uploadProfileImageFile(file) {
+    const progressDiv = document.getElementById('upload-progress');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const saveBtn = document.getElementById('save-image-btn');
+    
+    try {
+        progressDiv.style.display = 'block';
+        saveBtn.disabled = true;
+        
+        const result = await imageUploader.uploadToCloudinary(file, (percent) => {
+            progressBar.style.width = percent + '%';
+            progressText.textContent = `Uploading... ${Math.round(percent)}%`;
+        });
+        
+        currentProfileImageUrl = result.url;
+        progressText.textContent = '✅ Upload complete!';
+        
+        displayProfileImagePreview(result.url);
+        
+        setTimeout(() => {
+            progressDiv.style.display = 'none';
+            progressBar.style.width = '0%';
+            saveBtn.disabled = false;
+        }, 2000);
+        
+        showNotification('Image uploaded successfully! Click "Save" to apply.');
+    } catch (error) {
+        console.error('Upload error:', error);
+        progressText.textContent = '❌ Upload failed';
+        progressText.style.color = '#dc3545';
+        saveBtn.disabled = false;
+        
+        setTimeout(() => {
+            progressDiv.style.display = 'none';
+            progressBar.style.width = '0%';
+            progressText.style.color = '#666';
+        }, 3000);
+        
+        showNotification('Upload failed: ' + error.message, 'error');
+    }
+}
+
+function previewVendorProfileImage() {
+    const imageUrl = document.getElementById('vendor-profile-image-url').value.trim();
+    if (!imageUrl) {
+        document.getElementById('vendor-profile-image-preview').innerHTML = '';
+        return;
+    }
+    
+    currentProfileImageUrl = imageUrl;
+    displayProfileImagePreview(imageUrl);
+}
+
+function displayProfileImagePreview(imageUrl) {
+    const avatar = document.getElementById('vendor-profile-avatar');
+    const preview = document.getElementById('vendor-profile-image-preview');
+    const img = new Image();
+    
+    img.onload = function() {
+        avatar.innerHTML = `
+            <img 
+                src="${imageUrl}" 
+                alt="Profile"
+                style="width: 100%; height: 100%; object-fit: cover;"
+            >
+        `;
+        
+        preview.innerHTML = `
+            <div style="background: #e8f5e8; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem;">
+                ✅ Image loaded successfully
+            </div>
+        `;
+    };
+    
+    img.onerror = function() {
+        preview.innerHTML = `
+            <div style="background: #ffe6e6; padding: 0.75rem; border-radius: 8px; font-size: 0.85rem; color: #dc3545;">
+                ❌ Failed to load image. Check URL.
+            </div>
+        `;
+    };
+    
+    img.src = imageUrl;
+}
+
+async function saveVendorProfileImage() {
+    if (!currentProfileImageUrl) {
+        showNotification('Please select or enter an image first', 'error');
+        return;
+    }
+    
+    try {
+        const response = await api.updateVendorProfileImage(currentProfileImageUrl);
+        
+        if (response.success) {
+            showNotification('Profile image saved successfully!');
+            await loadVendorProfileImage();
+        }
+    } catch (error) {
+        showNotification('Failed to save image: ' + error.message, 'error');
+    }
+}
+
+async function removeVendorProfileImage() {
+    if (!confirm('Are you sure you want to remove your profile image?')) {
+        return;
+    }
+    
+    try {
+        const response = await api.updateVendorProfileImage(null);
+        
+        if (response.success) {
+            currentProfileImageUrl = null;
+            document.getElementById('vendor-profile-image-url').value = '';
+            document.getElementById('vendor-profile-image-preview').innerHTML = '';
+            
+            showNotification('Profile image removed');
+            await loadVendorProfileImage();
+        }
+    } catch (error) {
+        showNotification('Failed to remove image: ' + error.message, 'error');
+    }
+}
+
+async function loadVendorProfileImage() {
+    try {
+        const response = await api.getVendorProfile();
+        const avatar = document.getElementById('vendor-profile-avatar');
+        
+        if (response.profile_image) {
+            currentProfileImageUrl = response.profile_image;
+            
+            avatar.innerHTML = `
+                <img 
+                    src="${response.profile_image}" 
+                    alt="${response.outlet_name}"
+                    style="width: 100%; height: 100%; object-fit: cover;"
+                    onerror="this.style.display='none'; this.parentElement.innerHTML='<span style=\\'font-size: 3rem; color: white;\\'>${imageLoader.getOutletInitial(response.outlet_name)}</span>'"
+                >
+            `;
+            document.getElementById('vendor-profile-image-url').value = response.profile_image;
+        } else {
+            const initial = imageLoader.getOutletInitial(response.outlet_name);
+            avatar.innerHTML = `<span style="font-size: 3rem; color: white;">${initial}</span>`;
+        }
+    } catch (error) {
+        console.error('Failed to load profile image:', error);
+    }
 }
 
 // ==================== SECTION SWITCHING ====================
 function showSection(section) {
     document.getElementById('orders-section').style.display = 'none';
+    document.getElementById('past-orders-section').style.display = 'none';
     document.getElementById('menu-section').style.display = 'none';
+    document.getElementById('wallet-section').style.display = 'none';
+    document.getElementById('settings-section').style.display = 'none';
     
     if (section === 'orders') {
         document.getElementById('orders-section').style.display = 'block';
         loadOrders();
+    } else if (section === 'past-orders') {
+        document.getElementById('past-orders-section').style.display = 'block';
+        displayPastOrders();
     } else if (section === 'menu') {
         document.getElementById('menu-section').style.display = 'block';
         loadMenuItems();
+    } else if (section === 'wallet') {
+        document.getElementById('wallet-section').style.display = 'block';
+        loadVendorWallet();
+    } else if (section === 'settings') {
+        document.getElementById('settings-section').style.display = 'block';
+        loadVendorSettings();
     }
 }
 
-// ==================== UTILITY FUNCTIONS ====================
+// ==================== STATS UPDATE ====================
+function updateStats() {
+    document.getElementById('total-orders').textContent = currentOrders.length;
+    document.getElementById('today-orders').textContent = todayOrders.length;
+    document.getElementById('pending-orders').textContent = 
+        todayOrders.filter(o => o.status === 'pending' || o.status === 'confirmed').length;
+    document.getElementById('menu-items-count').textContent = currentMenuItems.length;
+}
+
+// ==================== NOTIFICATION SYSTEM ====================
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
     notification.style.cssText = `
@@ -1530,7 +1986,7 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
-// Add CSS for animations
+// ==================== CSS ANIMATIONS ====================
 const style = document.createElement('style');
 style.textContent = `
     @keyframes slideIn {
@@ -1541,49 +1997,75 @@ style.textContent = `
         from { transform: translateX(0); opacity: 1; }
         to { transform: translateX(100%); opacity: 0; }
     }
-    .switch {
-        position: relative;
-        display: inline-block;
-        width: 50px;
-        height: 24px;
+    
+    .vendor-menu-item-img {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 8px;
+        margin-right: 1rem;
     }
-    .switch input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-    .switch-slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        transition: .4s;
-        border-radius: 24px;
-    }
-    .switch-slider:before {
-        position: absolute;
-        content: "";
-        height: 16px;
-        width: 16px;
-        left: 4px;
-        bottom: 4px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
-    }
-    input:checked + .switch-slider {
-        background-color: #00b894;
-    }
-    input:checked + .switch-slider:before {
-        transform: translateX(26px);
+    
+    .vendor-menu-item-img-placeholder {
+        width: 80px;
+        height: 80px;
+        background: linear-gradient(135deg, #f0f0f0, #e0e0e0);
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 2rem;
+        color: #bbb;
+        margin-right: 1rem;
     }
 `;
 document.head.appendChild(style);
 
-console.log('✅ Vendor Dashboard Script Loaded');
+console.log('✅ Complete Vendor Dashboard Script Loaded');
+
+// ==================== PASSWORD MODAL HANDLER ====================
+document.addEventListener('DOMContentLoaded', () => {
+    const passwordForm = document.getElementById('vendor-password-form');
+    if (passwordForm) {
+        passwordForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const currentPassword = document.getElementById('vendor-current-password').value;
+            const newPassword = document.getElementById('vendor-new-password').value;
+            const confirmPassword = document.getElementById('vendor-confirm-password').value;
+            
+            if (newPassword !== confirmPassword) {
+                showNotification('New passwords do not match', 'error');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showNotification('Password must be at least 6 characters long', 'error');
+                return;
+            }
+            
+            try {
+                const response = await api.changePassword({
+                    currentPassword: currentPassword,
+                    newPassword: newPassword
+                });
+                
+                showNotification('Password changed successfully!');
+                closeVendorPasswordModal();
+            } catch (error) {
+                showNotification('Failed to change password: ' + error.message, 'error');
+            }
+        });
+    }
+    
+    // Close modal on outside click
+    window.onclick = (event) => {
+        const modal = document.getElementById('vendor-password-modal');
+        if (event.target === modal) {
+            closeVendorPasswordModal();
+        }
+    };
+});
 </script>
 </body>
 </html>

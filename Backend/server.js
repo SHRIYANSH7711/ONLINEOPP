@@ -971,7 +971,10 @@ app.patch('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res) 
 
   try {
     const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1',
+      `SELECT v.id, v.outlet_name 
+       FROM vendors v
+       JOIN vendor_users vu ON vu.vendor_id = v.id
+       WHERE vu.user_id = $1`, 
       [req.user.id]
     );
 
