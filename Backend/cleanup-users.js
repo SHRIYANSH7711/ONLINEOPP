@@ -1,5 +1,5 @@
 // Backend/cleanup-users.js
-// ⚠️ WARNING: This will DELETE ALL user data!
+//This will DELETE ALL user data!
 
 require('dotenv').config();
 const pool = require('./db');

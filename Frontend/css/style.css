@@ -186,6 +186,14 @@ body {
     gap: 1rem;
 }
 
+.profile > * {
+    flex-shrink: 0;
+}
+
+.profile .user + * {
+    display: none;
+}
+
 .wallet-display {
     background: var(--whiteColor);
     padding: 10px 15px;

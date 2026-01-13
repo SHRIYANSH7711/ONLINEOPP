@@ -817,6 +817,95 @@ app.patch('/api/vendor/toggle-status', verifyToken, requireRole('vendor'), async
   }
 });
 
+// ==================== VENDOR PROFILE IMAGE ROUTES ====================
+
+// Get vendor profile (including image)
+app.get('/api/vendor/profile', verifyToken, requireRole('vendor'), async (req, res) => {
+  try {
+    const vendorRes = await pool.query(
+      `SELECT v.id, v.outlet_name, v.profile_image
+       FROM vendors v
+       JOIN vendor_users vu ON vu.vendor_id = v.id
+       WHERE vu.user_id = $1`,
+      [req.user.id]
+    );
+
+    if (vendorRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    res.json(vendorRes.rows[0]);
+  } catch (error) {
+    console.error('Get vendor profile error:', error);
+    res.status(500).json({ error: 'Failed to get vendor profile' });
+  }
+});
+
+// Update vendor profile image
+app.patch('/api/vendor/profile-image', verifyToken, requireRole('vendor'), async (req, res) => {
+  const { profile_image } = req.body;
+
+  try {
+    const vendorRes = await pool.query(
+      `SELECT v.id
+       FROM vendors v
+       JOIN vendor_users vu ON vu.vendor_id = v.id
+       WHERE vu.user_id = $1`,
+      [req.user.id]
+    );
+
+    if (vendorRes.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+
+    const vendorId = vendorRes.rows[0].id;
+
+    // Validate image URL if provided
+    if (profile_image && !profile_image.startsWith('https://')) {
+      return res.status(400).json({ error: 'Invalid image URL. Must be HTTPS.' });
+    }
+
+    const result = await pool.query(
+      'UPDATE vendors SET profile_image = $1 WHERE id = $2 RETURNING id, outlet_name, profile_image',
+      [profile_image, vendorId]
+    );
+
+    res.json({
+      success: true,
+      message: profile_image ? 'Profile image updated successfully' : 'Profile image removed',
+      vendor: result.rows[0]
+    });
+
+  } catch (error) {
+    console.error('Update profile image error:', error);
+    res.status(500).json({ error: 'Failed to update profile image' });
+  }
+});
+
+// ==================== OUTLET IMAGE ROUTES (For Dashboard Display) ====================
+
+// Get all outlets with images (for student/teacher dashboard)
+app.get('/api/outlets', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        id, 
+        outlet_name, 
+        profile_image,
+        is_active,
+        is_online
+      FROM vendors
+      WHERE is_active = true
+      ORDER BY outlet_name
+    `);
+    
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching outlets:', error);
+    res.status(500).json({ error: 'Failed to fetch outlets' });
+  }
+});
+
 app.get('/api/menu', async (req, res) => {
   try {
     const result = await pool.query(`
