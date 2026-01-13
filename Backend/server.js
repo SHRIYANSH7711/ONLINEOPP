@@ -940,8 +940,18 @@ app.patch('/api/vendor/toggle-status', verifyToken, requireRole('vendor'), async
 app.get('/api/menu', async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT m.id, m.name, m.price, m.description, m.image_url, m.category, m.is_available, 
-             v.outlet_name, v.id as vendor_id, v.is_online
+      SELECT 
+        m.id, 
+        m.name, 
+        m.price, 
+        m.description, 
+        m.image_url, 
+        m.category, 
+        m.is_available, 
+        v.outlet_name, 
+        v.id as vendor_id, 
+        v.is_online,
+        v.profile_image as vendor_profile_image
       FROM menu_items m
       JOIN vendors v ON v.id = m.vendor_id
       WHERE m.is_available = true 
@@ -1024,11 +1034,17 @@ app.patch('/api/menu/:id/availability', verifyToken, requireRole('vendor'), asyn
 
 app.get('/api/menu-updates', async (req, res) => {
   try {
-    // Get all menu items with outlet status
+    // Get all menu items with outlet status AND vendor profile images
     const result = await pool.query(`
       SELECT 
-        m.id, m.name, m.price, m.is_available, m.vendor_id,
-        v.outlet_name, v.is_online
+        m.id, 
+        m.name, 
+        m.price, 
+        m.is_available, 
+        m.vendor_id,
+        v.outlet_name, 
+        v.is_online,
+        v.profile_image as vendor_profile_image
       FROM menu_items m
       JOIN vendors v ON v.id = m.vendor_id
       WHERE m.is_available = true 
@@ -1036,9 +1052,9 @@ app.get('/api/menu-updates', async (req, res) => {
       ORDER BY v.outlet_name, m.name
     `);
     
-    // Get outlet statuses
+    // Get outlet statuses with profile images
     const outletsResult = await pool.query(`
-      SELECT id, outlet_name, is_online
+      SELECT id, outlet_name, is_online, profile_image
       FROM vendors
       WHERE is_active = true
     `);

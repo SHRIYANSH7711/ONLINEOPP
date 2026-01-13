@@ -70,37 +70,41 @@ class AuthManager {
     return true;
   }
 
-  //Enhanced verification check that blocks access completely
+  // FIXED: Enhanced verification check that properly handles all cases
   requireEmailVerification() {
     const currentPage = window.location.pathname.split('/').pop();
-    const allowedUnverifiedPages = ['login.html', 'verify-email.html', 'forgot-password.html', 'reset-password.html', 'index.html'];
+    const publicPages = ['login.html', 'verify-email.html', 'forgot-password.html', 'reset-password.html', 'index.html', ''];
     
-    // If not authenticated at all, redirect to login
+    // Allow public pages without any checks
+    if (publicPages.includes(currentPage)) {
+      return true;
+    }
+    
+    // For protected pages, check authentication
     if (!this.isAuthenticated()) {
-      if (!allowedUnverifiedPages.includes(currentPage)) {
-        window.location.href = '/login.html';
-        return false;
-      }
-      return true;
+      window.location.href = '/login.html';
+      return false;
     }
 
-    // If authenticated but email not verified
+    // If authenticated but email not verified, redirect to verification
     if (!this.isEmailVerified()) {
-      // Only allow access to verification page
-      if (currentPage !== 'verify-email.html') {
-        // Redirect to verification page with pending status
-        window.location.href = '/verify-email.html?status=pending';
-        return false;
-      }
-      return true;
+      window.location.href = '/verify-email.html?status=pending';
+      return false;
     }
 
-    // Email is verified, allow access
+    // All checks passed
     return true;
   }
-  // Users will be completely blocked instead of just warned
 
+  // FIXED: Better redirect logic for authenticated users
   redirectIfAuthenticated() {
+    const currentPage = window.location.pathname.split('/').pop();
+    
+    // Only redirect if on login/signup pages
+    if (currentPage !== 'login.html' && currentPage !== 'index.html') {
+      return false;
+    }
+    
     if (this.isAuthenticated()) {
       // If email not verified, go to verification page
       if (!this.isEmailVerified()) {
@@ -130,24 +134,24 @@ async function resendVerification() {
   }
 }
 
-// UPDATED: Enhanced authentication check with COMPLETE email verification enforcement
+// FIXED: Proper authentication check that doesn't cause loops
 function checkAuth() {
   const currentPage = window.location.pathname.split('/').pop();
-  const publicPages = ['login.html', 'verify-email.html', 'forgot-password.html', 'reset-password.html', 'index.html'];
+  const publicPages = ['login.html', 'verify-email.html', 'forgot-password.html', 'reset-password.html', 'index.html', ''];
   
   // Skip auth check on public pages
   if (publicPages.includes(currentPage)) {
     return;
   }
 
-  // For all other pages, require both authentication AND email verification
+  // For all protected pages, enforce email verification
   if (!auth.requireEmailVerification()) {
     return; // Will redirect automatically
   }
 
   const user = auth.getCurrentUser();
   
-  // Role-based routing
+  // Role-based routing (only after verification passes)
   if (user.role === 'vendor' && currentPage === 'dashboard.html') {
     window.location.href = '/vendor-dashboard.html';
     return;

@@ -11,7 +11,7 @@ class CanTechApp {
 
     async init() {
         this.setupEventListeners();
-        this.loadBookmarks();
+        this.loadFavorites();
         await this.loadUserData();
         await this.loadMenuData();
         this.setupSearch();
@@ -187,8 +187,11 @@ class CanTechApp {
         try {
             this.showLoading(true);
             const menuData = await api.getMenu();
+            
+            // Store menu items with vendor profile images
             this.menuItems = menuData;
             
+            // Get unique outlet names
             this.outlets = [...new Set(menuData.map(item => item.outlet_name))];
             
             this.renderOutlets();
@@ -202,19 +205,19 @@ class CanTechApp {
         }
     }
 
-    loadBookmarks() {
-        const savedBookmarks = localStorage.getItem('bookmarks');
-        if (savedBookmarks) {
-            this.bookmarks = JSON.parse(savedBookmarks);
+    loadFavorites() {
+        const savedFavorites = localStorage.getItem('favorites');
+        if (savedFavorites) {
+            this.bookmarks = JSON.parse(savedFavorites);
         }
-        this.updateBookmarkCount();
+        this.updateFavoritesCount();
     }
     
-    saveBookmarks() {
-        localStorage.setItem('bookmarks', JSON.stringify(this.bookmarks));
+    saveFavorites() {
+        localStorage.setItem('favorites', JSON.stringify(this.bookmarks));
     }
     
-    toggleBookmark(menuItemId, event) {
+    toggleFavorite(menuItemId, event) {
         if (event) {
             event.stopPropagation();
         }
@@ -223,125 +226,150 @@ class CanTechApp {
         
         if (itemIndex > -1) {
             this.bookmarks.splice(itemIndex, 1);
-            this.showNotification('Removed from bookmarks');
+            this.showNotification('Removed from favorites ❤️');
         } else {
             this.bookmarks.push(menuItemId);
-            this.showNotification('Added to bookmarks!');
+            this.showNotification('Added to favorites! ❤️');
         }
         
-        this.saveBookmarks();
-        this.updateBookmarkCount();
-        this.updateBookmarkIcons();
+        this.saveFavorites();
+        this.updateFavoritesCount();
+        this.updateFavoriteIcons();
     }
     
-    updateBookmarkCount() {
-        const bookmarkCountEl = document.getElementById('bookmark-count');
-        if (bookmarkCountEl) {
-            bookmarkCountEl.textContent = this.bookmarks.length;
+    updateFavoritesCount() {
+        const favoritesCountEl = document.getElementById('favorites-count');
+        if (favoritesCountEl) {
+            favoritesCountEl.textContent = this.bookmarks.length;
         }
     }
-    
-    updateBookmarkIcons() {
+
+    updateFavoriteIcons() {
         document.querySelectorAll('.detail-favorites').forEach(icon => {
             const itemId = parseInt(icon.dataset.itemId);
             if (this.bookmarks.includes(itemId)) {
-                icon.name = 'bookmark';
-                icon.style.color = '#ffc107';
-            } else {
-                icon.name = 'bookmark-outline';
+                icon.name = 'heart';
                 icon.style.color = '#e74c3c';
+            } else {
+                icon.name = 'heart-outline';
+                icon.style.color = '#999';
             }
         });
     }
     
-    displayBookmarks() {
-        const bookmarkList = document.getElementById('bookmark-list');
-        if (!bookmarkList) return;
+    displayFavorites() {
+        const favoritesList = document.getElementById('favorites-list');
+        if (!favoritesList) return;
         
         if (this.bookmarks.length === 0) {
-            bookmarkList.innerHTML = `
-            <div class="empty-bookmarks">
-                <ion-icon name="bookmark-outline"></ion-icon>
-                <h3>No Bookmarks Yet</h3>
-                <p>Save your favorite items here!</p>
+            favoritesList.innerHTML = `
+            <div class="empty-favorites">
+            <ion-icon name="heart-outline"></ion-icon>
+            <h3>No Favorites Yet</h3>
+            <p>Save your favorite items here!</p>
             </div>
             `;
             return;
         }
         
-        const bookmarkedItems = this.menuItems.filter(item => 
+        const favoriteItems = this.menuItems.filter(item => 
             this.bookmarks.includes(item.id)
         );
         
-        bookmarkList.innerHTML = bookmarkedItems.map(item => `
-            <div class="bookmark-item">
-            ${this.getImageHTML(item.image_url, item.name, 'bookmark-img')}
-            <div class="bookmark-info">
-                <div class="bookmark-name">${item.name}</div>
-                <div class="bookmark-outlet">${item.outlet_name}</div>
-                <div class="bookmark-price">₹${parseFloat(item.price).toFixed(2)}</div>
+        favoritesList.innerHTML = favoriteItems.map(item => `
+            <div class="favorite-item">
+            ${this.getImageHTML(item.image_url, item.name, 'favorite-img')}
+            <div class="favorite-info">
+            <div class="favorite-name">${item.name}</div>
+            <div class="favorite-outlet">${item.outlet_name}</div>
+            <div class="favorite-price">₹${parseFloat(item.price).toFixed(2)}</div>
             </div>
-            <div class="bookmark-actions">
-                <button class="bookmark-add-cart" onclick="app.addToCart(${item.id}); return false;">
-                    Add to Cart
-                </button>
-                <button class="bookmark-remove" onclick="app.toggleBookmark(${item.id}); app.displayBookmarks(); return false;">
-                    Remove
-                </button>
+            <div class="favorite-actions">
+            <button class="favorite-add-cart" onclick="app.addToCart(${item.id}); return false;">
+            Add to Cart
+            </button>
+            <button class="favorite-remove" onclick="app.toggleFavorite(${item.id}); app.displayFavorites(); return false;">
+            Remove
+            </button>
             </div>
-        </div>
-        `).join('');
-    }
-
-    toggleBookmarkPopup() {
-        const bookmarkPopup = document.getElementById('bookmark-popup');
-        if (bookmarkPopup) {
-            const isActive = bookmarkPopup.classList.contains('active');
-            
-            if (isActive) {
-                bookmarkPopup.classList.remove('active');
-            } else {
-                bookmarkPopup.classList.add('active');
-                this.displayBookmarks();
+            </div>
+            `).join('');
+        }
+        
+        toggleFavoritesPopup() {
+            const favoritesPopup = document.getElementById('favorites-popup');
+            if (favoritesPopup) {
+                const isActive = favoritesPopup.classList.contains('active');
+                
+                if (isActive) {
+                    favoritesPopup.classList.remove('active');
+                } else {
+                    favoritesPopup.classList.add('active');
+                    this.displayFavorites();
+                }
             }
         }
-    }
-    
-    closeBookmarkPopup() {
-        const bookmarkPopup = document.getElementById('bookmark-popup');
-        if (bookmarkPopup) {
-            bookmarkPopup.classList.remove('active');
+        
+        closeFavoritesPopup() {
+            const favoritesPopup = document.getElementById('favorites-popup');
+            if (favoritesPopup) {
+                favoritesPopup.classList.remove('active');
+            }
         }
-    }
 
     renderOutlets() {
         const container = document.getElementById('outlets-container');
         if (!container) return;
-
+        
         const outletsHTML = this.outlets.map(outlet => {
-            const initial = outlet.charAt(0).toUpperCase();
-            return `
+            // Find if this outlet has a profile image
+            const outletData = this.menuItems.find(item => item.outlet_name === outlet);
+            const vendorProfileImage = outletData?.vendor_profile_image;
+            
+            if (vendorProfileImage) {
+                // Show vendor profile image if available
+                return `
                 <div class="filter-card" onclick="app.filterByOutlet('${outlet}')">
-                    <div class="filter-icon">
-                        <div class="image-placeholder filter-img-placeholder">
-                            ${initial}
-                        </div>
-                    </div>
-                    <p>${outlet}</p>
-                </div>
-            `;
-        }).join('');
-
-        container.innerHTML = `
-            <div class="filter-card" onclick="app.filterByOutlet('All')">
                 <div class="filter-icon">
-                    <div class="image-placeholder filter-img-placeholder">
-                        All
-                    </div>
+                <img 
+                src="${vendorProfileImage}" 
+                alt="${outlet}"
+                class="filter-img"
+                onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                >
+                <div class="filter-img-placeholder" style="display: none;">
+                ${imageLoader.getOutletInitial(outlet)}
                 </div>
-                <p>All</p>
-            </div>
-            ${outletsHTML}
+                </div>
+                <p>${outlet}</p>
+                </div>
+                `;
+            } else {
+                // Fallback to initial if no image
+                const initial = imageLoader.getOutletInitial(outlet);
+                return `
+                <div class="filter-card" onclick="app.filterByOutlet('${outlet}')">
+                <div class="filter-icon">
+                <div class="filter-img-placeholder">
+                ${initial}
+                </div>
+                </div>
+                <p>${outlet}</p>
+                </div>
+                `;
+            }
+        }).join('');
+        
+        container.innerHTML = `
+        <div class="filter-card" onclick="app.filterByOutlet('All')">
+        <div class="filter-icon">
+        <div class="filter-img-placeholder">
+        All
+        </div>
+        </div>
+        <p>All</p>
+        </div>
+        ${outletsHTML}
         `;
     }
 
@@ -378,7 +406,7 @@ class CanTechApp {
         }
         
         const menuHTML = itemsToShow.map(item => {
-            const isBookmarked = this.bookmarks.includes(item.id);
+            const isFavorite = this.bookmarks.includes(item.id);
             return `
             <div class="detail-card" data-category="${item.outlet_name}">
             ${this.getImageHTML(item.image_url, item.name, 'detail-img')}
@@ -393,16 +421,16 @@ class CanTechApp {
             </div>
             <ion-icon 
             class="detail-favorites" 
-            name="${isBookmarked ? 'bookmark' : 'bookmark-outline'}"
+            name="${isFavorite ? 'heart' : 'heart-outline'}"
             data-item-id="${item.id}"
-            style="color: ${isBookmarked ? '#ffc107' : '#e74c3c'}"
-            onclick="event.stopPropagation(); app.toggleBookmark(${item.id}, event)">
+            style="color: ${isFavorite ? '#e74c3c' : '#999'}"
+            onclick="event.stopPropagation(); app.toggleFavorite(${item.id}, event)">
             </ion-icon>
             </div>
             </div>
             `;
         }).join('');
-        
+
         container.innerHTML = menuHTML;
     }
 
@@ -1013,12 +1041,12 @@ function closeCart() {
     app.closeCart();
 }
 
-function toggleBookmarkPopup() {
-    app.toggleBookmarkPopup();
+function toggleFavoritesPopup() {
+    app.toggleFavoritesPopup();
 }
 
-function closeBookmarkPopup() {
-    app.closeBookmarkPopup();
+function closeFavoritesPopup() {
+    app.closeFavoritesPopup();
 }
 
 // ============================================

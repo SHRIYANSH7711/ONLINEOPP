@@ -146,9 +146,10 @@
                 <button onclick="resendNow()" class="btn" style="margin-top: 2rem;">
                     Resend Verification Email
                 </button>
-                <a href="/login.html" class="btn btn-secondary" style="display: inline-block; margin-top: 1rem;">
+                <!-- FIXED: Proper logout before going back to login -->
+                <button onclick="goBackToLogin()" class="btn btn-secondary" style="display: inline-block; margin-top: 1rem;">
                     Back to Login
-                </a>
+                </button>
             </div>
         </div>
 
@@ -158,7 +159,7 @@
             <h2>Email Verified Successfully!</h2>
             <p>Your email has been verified. Redirecting you to dashboard...</p>
             <p style="font-size: 0.9rem; color: #999;">If not redirected automatically, click below:</p>
-            <a href="/dashboard.html" class="btn" id="manual-redirect-btn">Go to Dashboard</a>
+            <a href="#" class="btn" id="manual-redirect-btn" onclick="goToDashboard()">Go to Dashboard</a>
         </div>
 
         <!-- Error State -->
@@ -166,7 +167,7 @@
             <div class="verification-icon error">❌</div>
             <h2>Verification Failed</h2>
             <p id="error-message">The verification link is invalid or has expired.</p>
-            <a href="/login.html" class="btn btn-secondary">Back to Login</a>
+            <button onclick="goBackToLogin()" class="btn btn-secondary">Back to Login</button>
             <button onclick="resendVerification()" class="btn" id="resend-btn">Resend Verification Email</button>
         </div>
     </div>
@@ -178,22 +179,21 @@
             const token = urlParams.get('token');
             const status = urlParams.get('status');
 
-            // ✅ ADDED: Check if user is already verified
+            // Check if user is already verified and logged in
             const storedUser = localStorage.getItem('user');
             if (storedUser) {
                 const user = JSON.parse(storedUser);
                 if (user.email_verified) {
-                    // Already verified, redirect to dashboard
+                    // Already verified, redirect to appropriate dashboard
                     showSuccess();
-                    const redirectPath = user.role === 'vendor' ? '/vendor-dashboard.html' : '/dashboard.html';
                     setTimeout(() => {
-                        window.location.href = redirectPath;
+                        goToDashboard();
                     }, 2000);
                     return;
                 }
             }
 
-            // If status=pending, show pending state (user was redirected here)
+            // If status=pending, show pending state
             if (status === 'pending') {
                 document.getElementById('loading-state').style.display = 'none';
                 document.getElementById('pending-state').style.display = 'block';
@@ -210,7 +210,7 @@
                 const data = await response.json();
 
                 if (response.ok && data.success) {
-                    // Update user in localStorage if logged in
+                    // Update user in localStorage
                     if (storedUser) {
                         const user = JSON.parse(storedUser);
                         user.email_verified = true;
@@ -219,15 +219,9 @@
 
                     showSuccess();
                     
-                    // ✅ ADDED: Auto-redirect after 2 seconds
-                    const user = JSON.parse(localStorage.getItem('user'));
-                    const redirectPath = user && user.role === 'vendor' ? '/vendor-dashboard.html' : '/dashboard.html';
-                    
-                    // Update manual redirect button
-                    document.getElementById('manual-redirect-btn').href = redirectPath;
-                    
+                    // Auto-redirect after 2 seconds
                     setTimeout(() => {
-                        window.location.href = redirectPath;
+                        goToDashboard();
                     }, 2000);
                 } else {
                     showError(data.error || 'Verification failed');
@@ -257,7 +251,7 @@
             const token = localStorage.getItem('authToken');
             if (!token) {
                 alert('Please log in first');
-                window.location.href = '/login.html';
+                goBackToLogin();
                 return;
             }
 
@@ -280,6 +274,29 @@
             } catch (error) {
                 console.error('Resend error:', error);
                 alert('An error occurred. Please try again.');
+            }
+        }
+
+        // FIXED: Proper logout before going to login
+        function goBackToLogin() {
+            // Clear auth data to prevent loop
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('user');
+            localStorage.removeItem('loginTime');
+            
+            // Redirect to login
+            window.location.href = '/login.html';
+        }
+
+        // FIXED: Proper dashboard redirect based on user role
+        function goToDashboard() {
+            const user = localStorage.getItem('user');
+            if (user) {
+                const userData = JSON.parse(user);
+                const redirectPath = userData.role === 'vendor' ? '/vendor-dashboard.html' : '/dashboard.html';
+                window.location.href = redirectPath;
+            } else {
+                window.location.href = '/login.html';
             }
         }
 
