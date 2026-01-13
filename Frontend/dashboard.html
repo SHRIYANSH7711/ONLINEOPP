@@ -367,6 +367,7 @@
     <script src="js/auth.js"></script>
     <script src="js/image-loader.js"></script>
     <script src="js/image-upload.js"></script>
+    <script src="js/realtime-updates.js"></script>
     <script src="js/app.js"></script>
     <script src="js/brand.js"></script>
     <script>
@@ -548,6 +549,25 @@
 }
 </style>
 `;
+// Initialize real-time updates when dashboard loads
+document.addEventListener('DOMContentLoaded', () => {
+    // Wait for app to be initialized
+    setTimeout(() => {
+        if (window.app) {
+            window.realtimeUpdates.startPolling(3000); // Check every 5 seconds
+            console.log('✅ Real-time updates initialized');
+        }
+    }, 1000);
+});
+
+// Pause polling when page is hidden (saves resources)
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        window.realtimeUpdates.stopPolling();
+    } else {
+        window.realtimeUpdates.startPolling(3000);
+    }
+});
 
 // Add modal to page
 document.addEventListener('DOMContentLoaded', () => {

@@ -186,14 +186,6 @@ body {
     gap: 1rem;
 }
 
-.profile > * {
-    flex-shrink: 0;
-}
-
-.profile .user + * {
-    display: none;
-}
-
 .wallet-display {
     background: var(--whiteColor);
     padding: 10px 15px;
@@ -389,6 +381,28 @@ body {
     font-weight: 800 !important;
     color: #0e6253 !important;
     margin: 0.5rem 0 0.75rem 0;
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutRight {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(100%);
+    opacity: 0;
+  }
 }
 
 /* ============================================
