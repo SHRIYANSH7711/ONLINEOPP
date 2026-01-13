@@ -30,6 +30,20 @@ async function setupDatabase() {
       );
     `);
 
+    console.log('Adding profile image columns...');
+    
+    await client.query(`
+      ALTER TABLE users 
+      ADD COLUMN IF NOT EXISTS profile_image VARCHAR(500);
+    `);
+    console.log('✅ Added profile_image column to users table');
+
+    await client.query(`
+      ALTER TABLE vendors 
+      ADD COLUMN IF NOT EXISTS profile_image VARCHAR(500);
+    `);
+    console.log('✅ Added profile_image column to vendors table');
+
     await client.query(`
       CREATE TABLE IF NOT EXISTS vendor_users (
       id SERIAL PRIMARY KEY,

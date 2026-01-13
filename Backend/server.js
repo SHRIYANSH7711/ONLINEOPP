@@ -606,6 +606,126 @@ app.post('/api/resend-verification', verifyToken, async (req, res) => {
   }
 });
 
+app.get('/api/profile', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, name, email, role, email_verified, wallet_balance, profile_image FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user: result.rows[0] });
+  } catch (error) {
+    console.error('Get profile error:', error);
+    res.status(500).json({ error: 'Failed to get profile' });
+  }
+});
+
+app.patch('/api/profile/image', verifyToken, async (req, res) => {
+  const { profile_image } = req.body;
+
+  try {
+    const result = await pool.query(
+      'UPDATE users SET profile_image = $1 WHERE id = $2 RETURNING id, name, email, role, email_verified, wallet_balance, profile_image',
+      [profile_image, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Update localStorage
+    const updatedUser = result.rows[0];
+    
+    res.json({
+      success: true,
+      message: profile_image ? 'Profile image updated successfully' : 'Profile image removed',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Update profile image error:', error);
+    res.status(500).json({ error: 'Failed to update profile image' });
+  }
+});
+
+// Get vendor profile (including outlet profile image)
+app.get('/api/vendor/profile', verifyToken, requireRole('vendor'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT v.id, v.outlet_name, v.profile_image, v.is_online, v.wallet_balance, v.upi_id
+      FROM vendors v
+      JOIN vendor_users vu ON vu.vendor_id = v.id
+      WHERE vu.user_id = $1
+    `, [req.user.id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor profile not found' });
+    }
+
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error('Get vendor profile error:', error);
+    res.status(500).json({ error: 'Failed to get vendor profile' });
+  }
+});
+
+// Update vendor profile image
+app.patch('/api/vendor/profile-image', verifyToken, requireRole('vendor'), async (req, res) => {
+  const { profile_image } = req.body;
+
+  try {
+    const vendorRes = await pool.query(
+      'SELECT id FROM vendors WHERE owner_user_id = $1', 
+      [req.user.id]
+    );
+
+    // UPDATED: Also check vendor_users table for multiple managers
+    if (vendorRes.rows.length === 0) {
+      const vendorUserRes = await pool.query(
+        'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
+        [req.user.id]
+      );
+
+      if (vendorUserRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+
+      const vendorId = vendorUserRes.rows[0].vendor_id;
+
+      // Update profile image for this vendor
+      const result = await pool.query(
+        'UPDATE vendors SET profile_image = $1 WHERE id = $2 RETURNING id, outlet_name, profile_image',
+        [profile_image, vendorId]
+      );
+
+      return res.json({
+        success: true,
+        message: profile_image ? 'Profile image updated successfully' : 'Profile image removed',
+        vendor: result.rows[0]
+      });
+    }
+
+    const vendorId = vendorRes.rows[0].id;
+
+    const result = await pool.query(
+      'UPDATE vendors SET profile_image = $1 WHERE id = $2 RETURNING id, outlet_name, profile_image',
+      [profile_image, vendorId]
+    );
+
+    res.json({
+      success: true,
+      message: profile_image ? 'Profile image updated successfully' : 'Profile image removed',
+      vendor: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Update vendor profile image error:', error);
+    res.status(500).json({ error: 'Failed to update vendor profile image' });
+  }
+});
+
 app.patch('/api/profile', verifyToken, async (req, res) => {
   const { name, email } = req.body;
   

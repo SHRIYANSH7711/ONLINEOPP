@@ -323,15 +323,104 @@
         <div class="settings-card">
             <h3><ion-icon name="person-outline"></ion-icon> Profile Settings</h3>
             
-            <div class="profile-photo-section">
-                <div class="profile-avatar-large" id="profile-avatar">U</div>
-                <div class="profile-photo-actions">
-                    <p><strong>Profile Photo</strong></p>
-                    <p style="color: #666; font-size: 0.9rem;">Upload a photo or use your initials</p>
-                    <input type="file" id="photo-upload" accept="image/*" style="display: none;">
-                    <button class="btn-secondary" onclick="document.getElementById('photo-upload').click()">
-                        Upload Photo
-                    </button>
+            <div class="profile-photo-section" style="display: flex; align-items: flex-start; gap: 2rem; margin-bottom: 2rem; flex-wrap: wrap;">
+                <div style="text-align: center;">
+                    <div class="profile-avatar-large" id="profile-avatar" style="width: 120px; height: 120px; border-radius: 50%; background: linear-gradient(135deg, #0e6253, #ffc107); display: flex; align-items: center; justify-content: center; font-size: 3rem; color: white; font-weight: bold; overflow: hidden;">
+                        U
+                    </div>
+                    <!-- Progress Bar -->
+                     <div id="profile-upload-progress" style="display: none; margin-top: 1rem;">
+                        <div style="background: #e0e0e0; border-radius: 10px; height: 8px; overflow: hidden;">
+                            <div id="profile-progress-bar" style="background: linear-gradient(90deg, #0e6253, #00b894); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                        </div>
+                        <p id="profile-progress-text" style="margin-top: 0.5rem; font-size: 0.9rem; color: #666;">Uploading...</p>
+                    </div>
+                </div>
+                
+                <div style="flex: 1; min-width: 300px;">
+                    <h4 style="margin: 0 0 1rem 0;">Profile Photo</h4>
+                    <p style="color: #666; font-size: 0.9rem; margin-bottom: 1.5rem;">
+                        Upload a photo or use your initials
+                    </p>
+                    <!-- Upload Method Tabs -->
+                    <div style="display: flex; gap: 1rem; margin-bottom: 1.5rem; border-bottom: 2px solid #e0e0e0;">
+                        <button 
+                        id="student-upload-tab" 
+                        class="upload-tab active"
+                        onclick="switchStudentUploadTab('upload')"
+                        style="flex: 1; padding: 12px; border: none; background: none; cursor: pointer; border-bottom: 3px solid #0e6253; font-weight: 600; color: #0e6253; transition: all 0.3s;"
+                        >
+                        📱 Upload from Device
+                        </button>
+                        <button 
+                        id="student-url-tab" 
+                        class="upload-tab"
+                        onclick="switchStudentUploadTab('url')"
+                        style="flex: 1; padding: 12px; border: none; background: none; cursor: pointer; border-bottom: 3px solid transparent; font-weight: 600; color: #666; transition: all 0.3s;"
+                        >
+                        🔗 Use URL
+                        </button>
+                    </div>
+                    <!-- Upload from Device Section -->
+                    <div id="student-upload-section" style="display: block;">
+                        <button 
+                        onclick="selectStudentProfileImageFile()" 
+                        class="btn-secondary"
+                        style="width: 100%; padding: 15px; margin-bottom: 1rem; display: flex; align-items: center; justify-content: center; gap: 0.5rem;"
+                        >
+                        <ion-icon name="cloud-upload-outline"></ion-icon>
+                        Choose Image from Device
+                        </button>
+                        
+                        <div style="background: #e8f5e8; padding: 1rem; border-radius: 8px; border-left: 4px solid #00b894; margin-bottom: 1rem; font-size: 0.9rem;">
+                            <strong>📸 Upload Guidelines:</strong>
+                            <ul style="margin: 0.5rem 0 0 1.5rem; padding: 0;">
+                                <li>Max file size: 5MB</li>
+                                <li>Formats: JPG, PNG, WebP, GIF</li>
+                                <li>Recommended: 400x400px square image</li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <!-- URL Input Section -->
+                    <div id="student-url-section" style="display: none;">
+                        <div class="form-group" style="margin-bottom: 1rem;">
+                            <label for="student-profile-image-url">Image URL</label>
+                            <input 
+                            type="url" 
+                            id="student-profile-image-url" 
+                            placeholder="https://images.unsplash.com/photo..."
+                            style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;"
+                            oninput="previewStudentProfileImage()"
+                            >
+                            <small style="color: #666; display: block; margin-top: 5px;">
+                                Free images from 
+                                <a href="https://unsplash.com" target="_blank" style="color: #0e6253;">Unsplash</a>
+                            </small>
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                        <button 
+                        onclick="saveStudentProfileImage()" 
+                        class="btn-primary"
+                        id="save-student-image-btn"
+                        style="flex: 1; padding: 12px 24px;"
+                        >
+                        <ion-icon name="save-outline"></ion-icon>
+                        Save Profile Image
+                        </button>
+                        
+                        <button 
+                        onclick="removeStudentProfileImage()" 
+                        class="btn-secondary"
+                        style="padding: 12px 24px; background: white; color: #dc3545; border: 2px solid #dc3545;"
+                        >
+                        <ion-icon name="trash-outline"></ion-icon>
+                        Remove
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -452,6 +541,212 @@
     <script src="js/brand.js"></script>
     <script src="js/image-loader.js"></script>
     <script>
+        let currentStudentProfileImageUrl = null;
+        let currentStudentUploadMethod = 'upload';
+        
+        function switchStudentUploadTab(method) {
+            currentStudentUploadMethod = method;
+            const uploadTab = document.getElementById('student-upload-tab');
+            const urlTab = document.getElementById('student-url-tab');
+            const uploadSection = document.getElementById('student-upload-section');
+            const urlSection = document.getElementById('student-url-section');
+            
+            if (method === 'upload') {
+                uploadTab.style.borderBottomColor = '#0e6253';
+                uploadTab.style.color = '#0e6253';
+                urlTab.style.borderBottomColor = 'transparent';
+                urlTab.style.color = '#666';
+                uploadSection.style.display = 'block';
+                urlSection.style.display = 'none';
+            } else {
+                uploadTab.style.borderBottomColor = 'transparent';
+                uploadTab.style.color = '#666';
+                urlTab.style.borderBottomColor = '#0e6253';
+                urlTab.style.color = '#0e6253';
+                uploadSection.style.display = 'none';
+                urlSection.style.display = 'block';
+            }
+        }
+        
+        async function selectStudentProfileImageFile() {
+            try {
+                const file = await imageUploader.selectFile('image/*');
+                await uploadStudentProfileImageFile(file);
+            } catch (error) {
+                if (error.message !== 'No file selected') {
+                    alert('Failed to select image: ' + error.message);
+                }
+            }
+        }
+        
+        async function uploadStudentProfileImageFile(file) {
+            const progressDiv = document.getElementById('profile-upload-progress');
+            const progressBar = document.getElementById('profile-progress-bar');
+            const progressText = document.getElementById('profile-progress-text');
+            const saveBtn = document.getElementById('save-student-image-btn');
+            
+            try {
+                progressDiv.style.display = 'block';
+                saveBtn.disabled = true;
+                
+                const result = await imageUploader.uploadToCloudinary(file, (percent) => {
+                    progressBar.style.width = percent + '%';
+                    progressText.textContent = `Uploading... ${Math.round(percent)}%`;
+                });
+                
+                currentStudentProfileImageUrl = result.url;
+                progressText.textContent = '✅ Upload complete!';
+                
+                displayStudentProfileImagePreview(result.url);
+                
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    saveBtn.disabled = false;
+                }, 2000);
+                
+                alert('Image uploaded! Click "Save Profile Image" to apply.');
+            } catch (error) {
+                console.error('Upload error:', error);
+                progressText.textContent = '❌ Upload failed';
+                progressText.style.color = '#dc3545';
+                saveBtn.disabled = false;
+                
+                setTimeout(() => {
+                    progressDiv.style.display = 'none';
+                    progressBar.style.width = '0%';
+                    progressText.style.color = '#666';
+                }, 3000);
+                
+                alert('Upload failed: ' + error.message);
+            }
+        }
+        
+        function previewStudentProfileImage() {
+            const imageUrl = document.getElementById('student-profile-image-url').value.trim();
+            
+            if (!imageUrl) {
+                currentStudentProfileImageUrl = null;
+                return;
+            }
+            
+            currentStudentProfileImageUrl = imageUrl;
+            displayStudentProfileImagePreview(imageUrl);
+        }
+        
+        function displayStudentProfileImagePreview(imageUrl) {
+            const avatar = document.getElementById('profile-avatar');
+            const img = new Image();
+            
+            img.onload = function() {
+                avatar.innerHTML = `
+                <img 
+                src="${imageUrl}" 
+                alt="Profile"
+                style="width: 100%; height: 100%; object-fit: cover;"
+                >
+                `;
+            };
+            
+            img.onerror = function() {
+                alert('Failed to load image. Please check the URL.');
+            };
+            
+            img.src = imageUrl;
+        }
+        
+        async function saveStudentProfileImage() {
+            if (!currentStudentProfileImageUrl) {
+                alert('Please select or enter an image first');
+                return;
+            }
+            
+            try {
+                const response = await api.request('/profile/image', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ profile_image: currentStudentProfileImageUrl })
+                });
+                
+                if (response.success) {
+                    // Update local storage
+                    const user = auth.getCurrentUser();
+                    user.profile_image = currentStudentProfileImageUrl;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    alert('Profile image saved successfully!');
+                    await loadStudentProfileImage();
+                }
+            } catch (error) {
+                alert('Failed to save image: ' + error.message);
+            }
+        }
+        
+        async function removeStudentProfileImage() {
+            if (!confirm('Are you sure you want to remove your profile image?')) {
+                return;
+            }
+            
+            try {
+                const response = await api.request('/profile/image', {
+                    method: 'PATCH',
+                    body: JSON.stringify({ profile_image: null })
+                });
+                
+                if (response.success) {
+                    currentStudentProfileImageUrl = null;
+                    document.getElementById('student-profile-image-url').value = '';
+                    
+                    // Update local storage
+                    const user = auth.getCurrentUser();
+                    user.profile_image = null;
+                    localStorage.setItem('user', JSON.stringify(user));
+                    
+                    alert('Profile image removed');
+                    await loadStudentProfileImage();
+                }
+            } catch (error) {
+                alert('Failed to remove image: ' + error.message);
+            }
+        }
+        
+        async function loadStudentProfileImage() {
+            try {
+                const response = await api.request('/profile');
+                const avatar = document.getElementById('profile-avatar');
+                
+                if (response.user.profile_image) {
+                    currentStudentProfileImageUrl = response.user.profile_image;
+                    
+                    avatar.innerHTML = `
+                    <img 
+                    src="${response.user.profile_image}" 
+                    alt="${response.user.name}"
+                    style="width: 100%; height: 100%; object-fit: cover;"
+                    onerror="this.style.display='none'; this.parentElement.innerHTML='${getInitials()}'"
+                    >
+                    `;
+                    document.getElementById('student-profile-image-url').value = response.user.profile_image;
+                } else {
+                    avatar.textContent = getInitials();
+                }
+            } catch (error) {
+                console.error('Failed to load profile image:', error);
+            }
+        }
+        
+        function getInitials() {
+            const user = auth.getCurrentUser();
+            if (user && user.name) {
+                return user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+            }
+            return 'U';
+        }
+        
+        // Load profile image on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStudentProfileImage();
+        });
+        
         // Mobile menu
         document.addEventListener('DOMContentLoaded', () => {
             const menuToggle = document.querySelector('.page-mobile-nav .menu-toggle');
