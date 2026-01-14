@@ -654,12 +654,36 @@ app.patch('/api/profile/image', verifyToken, async (req, res) => {
 // Get vendor profile (including outlet profile image)
 app.get('/api/vendor/profile', verifyToken, requireRole('vendor'), async (req, res) => {
   try {
+    // FIXED: Check vendor_users table first for multi-manager support
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    let vendorId;
+    
+    if (vendorUserRes.rows.length > 0) {
+      // User is linked via vendor_users table
+      vendorId = vendorUserRes.rows[0].vendor_id;
+    } else {
+      // Fallback: Check if user is owner (legacy system)
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1',
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Vendor profile not found' });
+      }
+      
+      vendorId = ownerRes.rows[0].id;
+    }
+
     const result = await pool.query(`
       SELECT v.id, v.outlet_name, v.profile_image, v.is_online, v.wallet_balance, v.upi_id
       FROM vendors v
-      JOIN vendor_users vu ON vu.vendor_id = v.id
-      WHERE vu.user_id = $1
-    `, [req.user.id]);
+      WHERE v.id = $1
+    `, [vendorId]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({ error: 'Vendor profile not found' });
@@ -1547,22 +1571,38 @@ app.get('/api/vendor/:vendorId/upi', verifyToken, async (req, res) => {
 
 app.get('/api/vendor/wallet', verifyToken, requireRole('vendor'), async (req, res) => {
   try {
-    const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1', 
+    // FIXED: Check vendor_users table first for multi-manager support
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
       [req.user.id]
     );
     
-    if (vendorRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Vendor not found' });
-    }
+    let vendorId;
     
-    const vendorId = vendorRes.rows[0].id;
+    if (vendorUserRes.rows.length > 0) {
+      // User is linked via vendor_users table
+      vendorId = vendorUserRes.rows[0].vendor_id;
+    } else {
+      // Fallback: Check if user is owner (legacy system)
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1', 
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+      
+      vendorId = ownerRes.rows[0].id;
+    }
 
+    // Get wallet info
     const walletRes = await pool.query(
       'SELECT wallet_balance, upi_id FROM vendors WHERE id = $1',
       [vendorId]
     );
 
+    // Get transactions
     const transactionsRes = await pool.query(`
       SELECT amount, type, description, created_at, payment_id
       FROM vendor_transactions 
@@ -1580,6 +1620,56 @@ app.get('/api/vendor/wallet', verifyToken, requireRole('vendor'), async (req, re
   } catch (error) {
     console.error('Vendor wallet fetch error:', error);
     res.status(500).json({ error: 'Failed to fetch wallet info' });
+  }
+});
+
+// Also update the UPI update route:
+app.post('/api/vendor/upi', verifyToken, requireRole('vendor'), async (req, res) => {
+  const { upi_id } = req.body;
+
+  const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
+  if (!upiRegex.test(upi_id)) {
+    return res.status(400).json({ error: 'Invalid UPI ID format' });
+  }
+
+  try {
+    // FIXED: Check vendor_users table first
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    let vendorId;
+    
+    if (vendorUserRes.rows.length > 0) {
+      vendorId = vendorUserRes.rows[0].vendor_id;
+    } else {
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1', 
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+      
+      vendorId = ownerRes.rows[0].id;
+    }
+
+    await pool.query(
+      'UPDATE vendors SET upi_id = $1 WHERE id = $2',
+      [upi_id, vendorId]
+    );
+
+    res.json({ 
+      success: true, 
+      message: 'UPI ID updated successfully',
+      upi_id: upi_id 
+    });
+
+  } catch (error) {
+    console.error('UPI update error:', error);
+    res.status(500).json({ error: 'Failed to update UPI ID' });
   }
 });
 
