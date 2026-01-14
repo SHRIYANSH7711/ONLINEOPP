@@ -1556,9 +1556,29 @@ app.get('/api/vendor/:vendorId/upi', verifyToken, async (req, res) => {
       return res.status(404).json({ error: 'Vendor not found' });
     }
 
+    const vendor = result.rows[0];
+
+    // CRITICAL CHECK: Ensure UPI ID exists and is valid
+    if (!vendor.upi_id || vendor.upi_id.trim() === '') {
+      return res.status(400).json({ 
+        error: `${vendor.outlet_name} has not set up UPI payment yet. Please contact the outlet.`
+      });
+    }
+
+    // Validate format
+    const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
+    if (!upiRegex.test(vendor.upi_id)) {
+      console.error(`❌ Invalid UPI format for ${vendor.outlet_name}: ${vendor.upi_id}`);
+      return res.status(400).json({
+        error: `${vendor.outlet_name} has an invalid UPI ID configured. Please contact support.`
+      });
+    }
+
+    console.log(`✅ UPI fetch successful: ${vendor.outlet_name} -> ${vendor.upi_id}`);
+
     res.json({
-      upi_id: result.rows[0].upi_id,
-      outlet_name: result.rows[0].outlet_name
+      upi_id: vendor.upi_id.trim().toLowerCase(), // Clean and return
+      outlet_name: vendor.outlet_name
     });
 
   } catch (error) {
@@ -1674,29 +1694,68 @@ app.post('/api/vendor/upi', verifyToken, requireRole('vendor'), async (req, res)
 });
 
 app.post('/api/vendor/upi', verifyToken, requireRole('vendor'), async (req, res) => {
-  const { upi_id } = req.body;
+  let { upi_id } = req.body;
 
+  // ENHANCED VALIDATION
+  // 1. Remove any whitespace
+  upi_id = upi_id.trim();
+
+  // 2. Convert to lowercase (UPI IDs are case-insensitive but stored lowercase)
+  upi_id = upi_id.toLowerCase();
+
+  // 3. Validate format: username@bank
   const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
   if (!upiRegex.test(upi_id)) {
-    return res.status(400).json({ error: 'Invalid UPI ID format' });
+    return res.status(400).json({ 
+      error: 'Invalid UPI ID format. Example: yourname@paytm or 9876543210@ybl' 
+    });
+  }
+
+  // 4. Check valid UPI handles (banks)
+  const validHandles = [
+    'paytm', 'phonepe', 'googlepay', 'ybl', 'okaxis', 'okicici', 
+    'okhdfcbank', 'oksbi', 'ibl', 'axl', 'ikwik', 'fbl', 'upi'
+  ];
+  
+  const handle = upi_id.split('@')[1];
+  const isValidHandle = validHandles.some(vh => handle.includes(vh));
+  
+  if (!isValidHandle) {
+    console.warn(`⚠️ Unusual UPI handle: ${handle}`);
+    // Don't block, but log warning
   }
 
   try {
-    const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1', 
+    // Check vendor_users table first
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
       [req.user.id]
     );
     
-    if (vendorRes.rows.length === 0) {
-      return res.status(404).json({ error: 'Vendor not found' });
-    }
+    let vendorId;
     
-    const vendorId = vendorRes.rows[0].id;
+    if (vendorUserRes.rows.length > 0) {
+      vendorId = vendorUserRes.rows[0].vendor_id;
+    } else {
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1', 
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+      
+      vendorId = ownerRes.rows[0].id;
+    }
 
+    // Update with cleaned UPI ID
     await pool.query(
       'UPDATE vendors SET upi_id = $1 WHERE id = $2',
       [upi_id, vendorId]
     );
+
+    console.log(`✅ UPI ID updated for vendor ${vendorId}: ${upi_id}`);
 
     res.json({ 
       success: true, 
@@ -1707,6 +1766,47 @@ app.post('/api/vendor/upi', verifyToken, requireRole('vendor'), async (req, res)
   } catch (error) {
     console.error('UPI update error:', error);
     res.status(500).json({ error: 'Failed to update UPI ID' });
+  }
+});
+
+app.post('/api/test-upi', verifyToken, async (req, res) => {
+  const { vendor_id } = req.body;
+  
+  try {
+    const result = await pool.query(
+      'SELECT outlet_name, upi_id FROM vendors WHERE id = $1',
+      [vendor_id]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Vendor not found' });
+    }
+    
+    const vendor = result.rows[0];
+    
+    if (!vendor.upi_id) {
+      return res.json({
+        valid: false,
+        message: `${vendor.outlet_name} has not configured UPI yet`
+      });
+    }
+    
+    // Basic format check
+    const upiRegex = /^[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+$/;
+    const isValidFormat = upiRegex.test(vendor.upi_id);
+    
+    res.json({
+      valid: isValidFormat,
+      outlet_name: vendor.outlet_name,
+      upi_id: vendor.upi_id,
+      message: isValidFormat 
+        ? 'UPI ID format is valid' 
+        : 'UPI ID format is invalid'
+    });
+    
+  } catch (error) {
+    console.error('UPI test error:', error);
+    res.status(500).json({ error: 'Failed to test UPI' });
   }
 });
 
