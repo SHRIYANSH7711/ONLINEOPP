@@ -1,6 +1,4 @@
 // js/image-upload.js
-// Create this NEW file in Frontend/js/
-
 class ImageUploader {
   constructor() {
     // Cloudinary config - will be fetched from backend

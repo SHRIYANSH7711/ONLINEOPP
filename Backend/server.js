@@ -896,12 +896,34 @@ app.post('/api/change-password', verifyToken, async (req, res) => {
 // Get vendor live status
 app.get('/api/vendor/status', verifyToken, requireRole('vendor'), async (req, res) => {
   try {
+    // FIXED: Check vendor_users table first
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    let vendorId;
+    
+    if (vendorUserRes.rows.length > 0) {
+      vendorId = vendorUserRes.rows[0].vendor_id;
+    } else {
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1',
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+      
+      vendorId = ownerRes.rows[0].id;
+    }
+
     const vendorRes = await pool.query(
       `SELECT v.id, v.outlet_name, v.is_online
        FROM vendors v
-       JOIN vendor_users vu ON vu.vendor_id = v.id
-       WHERE vu.user_id = $1`,
-      [req.user.id]
+       WHERE v.id = $1`,
+      [vendorId]
     );
 
     if (vendorRes.rows.length === 0) {
@@ -923,19 +945,40 @@ app.get('/api/vendor/status', verifyToken, requireRole('vendor'), async (req, re
 // Toggle vendor live status
 app.patch('/api/vendor/toggle-status', verifyToken, requireRole('vendor'), async (req, res) => {
   try {
+    // FIXED: Check vendor_users table first
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
+      [req.user.id]
+    );
+    
+    let vendorId;
+    
+    if (vendorUserRes.rows.length > 0) {
+      vendorId = vendorUserRes.rows[0].vendor_id;
+    } else {
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1',
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        return res.status(404).json({ error: 'Vendor not found' });
+      }
+      
+      vendorId = ownerRes.rows[0].id;
+    }
+
     const vendorRes = await pool.query(
       `SELECT v.id, v.outlet_name, v.is_online
        FROM vendors v
-       JOIN vendor_users vu ON vu.vendor_id = v.id
-       WHERE vu.user_id = $1`,
-      [req.user.id]
+       WHERE v.id = $1`,
+      [vendorId]
     );
 
     if (vendorRes.rows.length === 0) {
       return res.status(404).json({ error: 'Vendor not found' });
     }
 
-    const vendorId = vendorRes.rows[0].id;
     const currentStatus = vendorRes.rows[0].is_online || false;
     const newStatus = !currentStatus;
 
@@ -992,24 +1035,34 @@ app.get('/api/menu', async (req, res) => {
 
 app.get('/api/menu/vendor', verifyToken, requireRole('vendor'), async (req, res) => {
   try {
-    const vendorRes = await pool.query(
-      `SELECT v.id, v.outlet_name 
-      FROM vendors v
-      JOIN vendor_users vu ON vu.vendor_id = v.id
-      WHERE vu.user_id = $1`, 
+    // FIXED: Check vendor_users table first
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
       [req.user.id]
     );
     
-    if (vendorRes.rows.length === 0) {
-      return res.json([]);
-    }
+    let vendorId;
     
-    const vendorId = vendorRes.rows[0].id;
+    if (vendorUserRes.rows.length > 0) {
+      vendorId = vendorUserRes.rows[0].vendor_id;
+    } else {
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1', 
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        return res.json([]); // Return empty array
+      }
+      
+      vendorId = ownerRes.rows[0].id;
+    }
 
     const result = await pool.query(
       'SELECT id, name, price, is_available, category, image_url FROM menu_items WHERE vendor_id = $1 ORDER BY name',
       [vendorId]
     );
+    
     res.json(result.rows);
   } catch (err) {
     console.error('Vendor menu fetch error:', err);
@@ -1026,19 +1079,28 @@ app.patch('/api/menu/:id/availability', verifyToken, requireRole('vendor'), asyn
   }
 
   try {
-    const vendorRes = await pool.query(
-      `SELECT v.id, v.outlet_name 
-      FROM vendors v
-      JOIN vendor_users vu ON vu.vendor_id = v.id
-      WHERE vu.user_id = $1`, 
+    // FIXED: Check vendor_users table first
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
       [req.user.id]
     );
-
-    if (vendorRes.rows.length === 0) {
-      return res.status(403).json({ error: 'Vendor not found' });
+    
+    let vendorId;
+    
+    if (vendorUserRes.rows.length > 0) {
+      vendorId = vendorUserRes.rows[0].vendor_id;
+    } else {
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1',
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        return res.status(403).json({ error: 'Vendor not found' });
+      }
+      
+      vendorId = ownerRes.rows[0].id;
     }
-
-    const vendorId = vendorRes.rows[0].id;
 
     const result = await pool.query(
       'UPDATE menu_items SET is_available = $1 WHERE id = $2 AND vendor_id = $3 RETURNING *',
@@ -1840,31 +1902,60 @@ app.get('/api/orders', verifyToken, async (req, res) => {
 
 app.get('/api/orders/vendor', verifyToken, requireRole('vendor'), async (req, res) => {
   try {
-    const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1', 
+    // FIXED: Check vendor_users table first for multi-manager support
+    const vendorUserRes = await pool.query(
+      'SELECT vendor_id FROM vendor_users WHERE user_id = $1',
       [req.user.id]
     );
     
-    if (vendorRes.rows.length === 0) {
-      return res.json([]);
+    let vendorId;
+    
+    if (vendorUserRes.rows.length > 0) {
+      // User is linked via vendor_users table (NEW SYSTEM)
+      vendorId = vendorUserRes.rows[0].vendor_id;
+      console.log(`✅ Vendor user ${req.user.id} managing outlet ${vendorId}`);
+    } else {
+      // Fallback: Check if user is owner (LEGACY SYSTEM)
+      const ownerRes = await pool.query(
+        'SELECT id FROM vendors WHERE owner_user_id = $1', 
+        [req.user.id]
+      );
+      
+      if (ownerRes.rows.length === 0) {
+        console.log(`❌ No vendor found for user ${req.user.id}`);
+        return res.json([]); // Return empty array instead of error
+      }
+      
+      vendorId = ownerRes.rows[0].id;
+      console.log(`✅ Vendor owner ${req.user.id} managing outlet ${vendorId}`);
     }
     
-    const vendorId = vendorRes.rows[0].id;
-    
+    // Get all orders for this vendor
     const result = await pool.query(`
-      SELECT o.id, o.token, o.total_amount, o.status, o.created_at,
-             json_agg(json_build_object(
-               'name', m.name,
-               'qty', oi.qty,
-               'price', oi.price
-             )) as items
+      SELECT 
+        o.id, 
+        o.token, 
+        o.total_amount, 
+        o.status, 
+        o.created_at,
+        o.payment_method,
+        o.razorpay_payment_id,
+        json_agg(
+          json_build_object(
+            'name', m.name,
+            'qty', oi.qty,
+            'price', oi.price
+          ) ORDER BY oi.id
+        ) as items
       FROM orders o
       JOIN order_items oi ON oi.order_id = o.id
       JOIN menu_items m ON m.id = oi.menu_item_id
       WHERE oi.vendor_id = $1
-      GROUP BY o.id, o.token, o.total_amount, o.status, o.created_at
+      GROUP BY o.id, o.token, o.total_amount, o.status, o.created_at, o.payment_method, o.razorpay_payment_id
       ORDER BY o.created_at DESC
     `, [vendorId]);
+
+    console.log(`📦 Found ${result.rows.length} orders for vendor ${vendorId}`);
 
     res.json(result.rows);
   } catch (err) {
