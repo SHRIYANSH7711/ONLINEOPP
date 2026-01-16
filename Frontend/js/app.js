@@ -862,7 +862,7 @@ class RealPaymentProcessor {
                     color: '#0e6253'
                 },
                 method: {
-                    upi: true,
+                    upi: false,
                     card: true,
                     wallet: true,
                     netbanking: true
@@ -873,7 +873,9 @@ class RealPaymentProcessor {
                 modal: {
                     ondismiss: () => {
                         this.handlePaymentFailure(vendorOrder, 'Payment cancelled by user');
-                    }
+                    },
+                    confirm_close: true,
+                    escape: true
                 }
             };
 
