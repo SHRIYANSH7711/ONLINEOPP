@@ -9,10 +9,15 @@ const pool = require('./db');
 const { verifyToken, requireRole } = require('./middleware/auth');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
+const nodemailer = require('nodemailer');
 
-
-const sgMail = require('@sendgrid/mail');
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
 
 async function sendVerificationEmail(to, name, verificationToken) {
   const frontendUrl = process.env.FRONTEND_URL || 
@@ -24,9 +29,9 @@ async function sendVerificationEmail(to, name, verificationToken) {
   
   console.log('🔗 Verification URL:', verificationUrl); // Debug log
   
-  const msg = {
+  await transporter.sendMail({
+    from: `"Onlineपेटपूजा" <${process.env.EMAIL_USER}>`,
     to: to,
-    from: process.env.EMAIL_USER, 
     subject: 'Verify Your Onlineपेटपूजा Account',
     html: `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -52,16 +57,10 @@ async function sendVerificationEmail(to, name, verificationToken) {
         </div>
       </div>
     `
-  };
+  });
 
-  try {
-    await sgMail.send(msg);
-    console.log('✅ Verification email sent via SendGrid to:', to);
-    return true;
-  } catch (error) {
-    console.error('❌ SendGrid error:', error.response ? error.response.body : error.message);
-    throw error;
-  }
+  console.log('✅ Verification email sent via Gmail to:', to);
+  return true;
 }
 
 // ==================== ENHANCED PASSWORD VALIDATION ====================
@@ -436,9 +435,9 @@ app.post('/api/forgot-password', async (req, res) => {
     const resetUrl = `${frontendUrl}/reset-password.html?token=${resetToken}`;
 
     // Send password reset email
-    const msg = {
+    await transporter.sendMail({
+      from: `"Onlineपेटपूजा" <${process.env.EMAIL_USER}>`,
       to: sanitizedEmail,
-      from: process.env.EMAIL_USER,
       subject: 'Reset Your Onlineपेटपूजा Password',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -467,9 +466,7 @@ app.post('/api/forgot-password', async (req, res) => {
           </div>
         </div>
       `
-    };
-
-    await sgMail.send(msg);
+    });
 
     res.json({ 
       success: true, 
@@ -794,11 +791,10 @@ app.patch('/api/profile', verifyToken, async (req, res) => {
       paramCount++;
       
       // Send verification email to new address
-      const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
-      
       try {
+        const verificationUrl = `${process.env.FRONTEND_URL}/verify-email.html?token=${verificationToken}`;
         await transporter.sendMail({
-          from: process.env.EMAIL_USER,
+          from: `"Onlineपेटपूजा" <${process.env.EMAIL_USER}>`,
           to: sanitizedEmail,
           subject: 'Verify Your New Email Address',
           html: `
