@@ -169,7 +169,7 @@ app.post('/api/signup', async (req, res) => {
       return res.status(400).json({ error: 'Please select an outlet' });
     }
     
-    const validOutletIds = [1, 2, 3, 4, 5, 6]; // Your outlet IDs
+    const validOutletIds = [1, 2, 3, 4, 5, 6, 7]; // Your outlet IDs
     if (!validOutletIds.includes(parseInt(outletId))) {
       return res.status(400).json({ error: 'Invalid outlet selected' });
     }
