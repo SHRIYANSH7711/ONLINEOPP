@@ -9,20 +9,32 @@ const pool = require('./db');
 const { verifyToken, requireRole } = require('./middleware/auth');
 const Razorpay = require('razorpay');
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
+const transporter = {
+  async sendMail({ to, subject, html }) {
+    const res = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'api-key': process.env.BREVO_API_KEY,
+        'Content-Type': 'application/json',
+        accept: 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { name: 'Onlineपेटपूजा', email: process.env.EMAIL_USER },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html
+      })
+    });
+    if (!res.ok) throw new Error(`Brevo error ${res.status}: ${await res.text()}`);
+    return res.json();
   }
-});
+};
 
 async function sendVerificationEmail(to, name, verificationToken) {
   const frontendUrl = process.env.FRONTEND_URL || 
                      (process.env.NODE_ENV === 'production' 
-                       ? 'https://your-app.onrender.com'  
+                       ? 'https://onlineopp.onrender.com'  
                        : 'http://localhost:3001');
   
   const verificationUrl = `${frontendUrl}/verify-email.html?token=${verificationToken}`;
@@ -59,7 +71,7 @@ async function sendVerificationEmail(to, name, verificationToken) {
     `
   });
 
-  console.log('✅ Verification email sent via Gmail to:', to);
+  console.log('✅ Verification email sent via Brevo to:', to);
   return true;
 }
 
@@ -237,13 +249,9 @@ app.post('/api/signup', async (req, res) => {
     await client.query('COMMIT');
 
     // Send verification email    
-    try {
-      await sendVerificationEmail(sanitizedEmail, sanitizedName, verificationToken);
-      console.log('✅ Verification email sent to:', sanitizedEmail);
-    } catch (emailError) {
-      console.error('❌ Failed to send verification email:', emailError);
-      // Continue anyway - user can request resend later
-    }
+    sendVerificationEmail(sanitizedEmail, sanitizedName, verificationToken) 
+    .then(() => console.log('✅ Verification email sent to:', sanitizedEmail)) 
+    .catch(err => console.error('❌ Failed to send verification email:', err.message));
 
     const token = jwt.sign(
       { 
@@ -595,8 +603,6 @@ app.post('/api/resend-verification', verifyToken, async (req, res) => {
       console.error('Resend verification error:', error);
       res.status(500).json({ error: 'Failed to resend verification email' });
     }
-    
-    res.json({ success: true, message: 'Verification email sent!' });
   } catch (error) {
     console.error('Resend verification error:', error);
     res.status(500).json({ error: 'Failed to resend verification email' });
@@ -1308,7 +1314,7 @@ app.delete('/api/menu/:id', verifyToken, requireRole('vendor'), async (req, res)
 
   try {
     const vendorRes = await pool.query(
-      'SELECT id FROM vendors WHERE owner_user_id = $1', 
+      'SELECT vendor_id AS id FROM vendor_users WHERE user_id = $1',
       [req.user.id]
     );
     
