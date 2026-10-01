@@ -661,8 +661,8 @@
                 <!-- Existing Name/Email Fields -->
                  <div class="profile-section" style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;">
                     <div class="form-group">
-                        <label for="vendor-name">Full Name</label>
-                        <input type="text" id="vendor-name" placeholder="Enter your name" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
+                        <label for="vendor-name-input">Full Name</label>
+                        <input type="text" id="vendor-name-input" placeholder="Enter your name" style="width: 100%; padding: 12px; border: 2px solid #ddd; border-radius: 8px; font-size: 16px;">
                     </div>
                     <div class="form-group">
                         <label for="vendor-email">Email</label>
@@ -968,6 +968,7 @@ let currentItemUploadMethod = 'upload';
 // ==================== INITIALIZATION ====================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('🚀 Vendor Dashboard Initializing...');
+    setActiveNav('orders');
     
     const user = auth.getCurrentUser();
     if (user) {
@@ -1607,7 +1608,7 @@ function refreshWallet() {
 function loadVendorSettings() {
     const user = auth.getCurrentUser();
     if (user) {
-        const nameInput = document.getElementById('vendor-name');
+        const nameInput = document.getElementById('vendor-name-input');
         const emailInput = document.getElementById('vendor-email');
         if (nameInput) nameInput.value = user.name;
         if (emailInput) emailInput.value = user.email;
@@ -1640,7 +1641,7 @@ function updateVendorProfileAvatar(name) {
 }
 
 async function updateVendorProfile() {
-    const name = document.getElementById('vendor-name').value.trim();
+    const name = document.getElementById('vendor-name-input').value.trim();
     const email = document.getElementById('vendor-email').value.trim();
     
     if (!name) {
@@ -1658,12 +1659,10 @@ async function updateVendorProfile() {
     
     if (emailChanged) {
         const confirmed = confirm(
-            '⚠️ IMPORTANT: Changing your email will log you out and require email verification.\n\n' +
-            'You will need to:\n' +
-            '1. Verify the new email address\n' +
-            '2. Login again with the new email\n\n' +
-            'Do you want to continue?'
-        );
+                    '⚠️ IMPORTANT: You will need to verify your new email address before you can use your account.\n\n' +
+                    'A verification link will be sent to the new address.\n\n' +
+                    'Do you want to continue?'
+                );
         
         if (!confirmed) {
             return;
@@ -1682,9 +1681,8 @@ async function updateVendorProfile() {
             localStorage.setItem('user', JSON.stringify(user));
             
             setTimeout(() => {
-                alert('You will now be logged out. Please verify your email and login again.');
-                auth.logout();
-            }, 2000);
+                window.location.href = '/verify-email.html?status=pending';
+            }, 1500);
         } else {
             user.name = name;
             localStorage.setItem('user', JSON.stringify(user));
@@ -1928,7 +1926,14 @@ async function loadVendorProfileImage() {
 }
 
 // ==================== SECTION SWITCHING ====================
+function setActiveNav(section) {                                  
+    document.querySelectorAll('.sidebar-menus a').forEach(a => {
+        a.classList.toggle('active', a.getAttribute('onclick') === `showSection('${section}')`);
+    });
+}
+
 function showSection(section) {
+    setActiveNav(section);
     document.getElementById('orders-section').style.display = 'none';
     document.getElementById('past-orders-section').style.display = 'none';
     document.getElementById('menu-section').style.display = 'none';

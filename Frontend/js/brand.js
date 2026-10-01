@@ -29,9 +29,20 @@ const BRAND_SHORT_NAME = "OPP";
     }
   }
 
+  function highlightActiveNav() {
+    const current = window.location.pathname.split('/').pop() || 'dashboard.html';
+    document.querySelectorAll('.sidebar-menus a[href]').forEach(link => {
+      const target = link.getAttribute('href').split('/').pop();
+      if (target && target !== '#' && target === current) {
+        link.classList.add('active');
+      }
+    });
+  }
+
   function init() {
     applyBranding();
     applyDarkMode();
+    highlightActiveNav();
   }
 
   if (document.readyState === 'loading') {

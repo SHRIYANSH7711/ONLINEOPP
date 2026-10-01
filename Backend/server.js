@@ -609,6 +609,70 @@ app.post('/api/resend-verification', verifyToken, async (req, res) => {
   }
 });
 
+// Fix a mistyped email while the account is still unverified
+app.post('/api/change-unverified-email', verifyToken, async (req, res) => {
+  const { newEmail } = req.body;
+
+  if (!newEmail) {
+    return res.status(400).json({ error: 'New email is required' });
+  }
+
+  const sanitizedEmail = sanitizeInput(newEmail.toLowerCase());
+  if (!validateEmail(sanitizedEmail)) {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+
+  try {
+    const userResult = await pool.query(
+      'SELECT id, name, email, email_verified FROM users WHERE id = $1',
+      [req.user.id]
+    );
+
+    if (userResult.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const user = userResult.rows[0];
+
+    if (user.email_verified) {
+      return res.status(400).json({ error: 'Your email is already verified. Change it from Settings instead.' });
+    }
+
+    if (user.email === sanitizedEmail) {
+      return res.status(400).json({ error: 'That is already your current email. Use Resend instead.' });
+    }
+
+    const existing = await pool.query(
+      'SELECT id FROM users WHERE email = $1 AND id != $2',
+      [sanitizedEmail, user.id]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.status(400).json({ error: 'Email already in use' });
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString('hex');
+
+    await pool.query(
+      'UPDATE users SET email = $1, verification_token = $2 WHERE id = $3',
+      [sanitizedEmail, verificationToken, user.id]
+    );
+
+    sendVerificationEmail(sanitizedEmail, user.name, verificationToken)
+      .then(() => console.log('✅ Verification email sent to:', sanitizedEmail))
+      .catch(err => console.error('❌ Failed to send verification email:', err.message));
+
+    res.json({
+      success: true,
+      message: `Verification email sent to ${sanitizedEmail}`,
+      email: sanitizedEmail
+    });
+  } catch (error) {
+    console.error('Change unverified email error:', error);
+    res.status(500).json({ error: 'Failed to change email' });
+  }
+});
+
 app.get('/api/profile', verifyToken, async (req, res) => {
   try {
     const result = await pool.query(
@@ -767,7 +831,14 @@ app.patch('/api/profile', verifyToken, async (req, res) => {
       paramCount++;
     }
 
+    let emailChanged = false;
     if (email !== undefined) {
+      const currentUser = await pool.query('SELECT email FROM users WHERE id = $1', [req.user.id]);
+      emailChanged = currentUser.rows.length > 0 &&
+        currentUser.rows[0].email !== sanitizeInput(email.toLowerCase());
+    }
+
+    if (emailChanged) {
       const sanitizedEmail = sanitizeInput(email.toLowerCase());
       if (!validateEmail(sanitizedEmail)) {
         return res.status(400).json({ error: 'Invalid email format' });
@@ -837,7 +908,7 @@ app.patch('/api/profile', verifyToken, async (req, res) => {
 
     res.json({
       success: true,
-      message: email !== undefined ? 
+      message: emailChanged ? 
         'Profile updated! Please verify your new email address.' : 
         'Profile updated successfully',
       user: result.rows[0]

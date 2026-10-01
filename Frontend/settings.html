@@ -834,10 +834,8 @@
             //Warn user about email change
             if (emailChanged) {
                 const confirmed = confirm(
-                    '⚠️ IMPORTANT: Changing your email will log you out and require email verification.\n\n' +
-                    'You will need to:\n' +
-                    '1. Verify the new email address\n' +
-                    '2. Login again with the new email\n\n' +
+                    '⚠️ IMPORTANT: You will need to verify your new email address before you can use your account.\n\n' +
+                    'A verification link will be sent to the new address.\n\n' +
                     'Do you want to continue?'
                 );
                 
@@ -849,20 +847,15 @@
             try {
                 const response = await api.updateProfile({ name, email });
                 
-                //If email changed, force logout and redirect to verification
+                                //If email changed, go to the verification page
                 if (emailChanged) {
-                    alert('✅ Email updated!\n\nA verification email has been sent to your new email address.\n\nYou will now be logged out. Please verify your email and login again.');
-                    
-                    // Update user data
                     user.name = name;
                     user.email = email;
                     user.email_verified = false;
                     localStorage.setItem('user', JSON.stringify(user));
-                    
-                    // Force logout
-                    setTimeout(() => {
-                        auth.logout();
-                    }, 1000);
+
+                    alert('✅ Email updated! A verification link was sent to ' + email + '.\n\nWrong address? You can fix it on the next page.');
+                    window.location.href = '/verify-email.html?status=pending';
                 } else {
                     // Just name changed
                     user.name = name;
@@ -874,6 +867,7 @@
                 alert('Failed to update profile: ' + error.message);
             }
         }
+    
 
         function openPasswordModal() {
             document.getElementById('password-modal').classList.add('active');
@@ -959,18 +953,6 @@
             const enabled = document.getElementById('auto-refresh').checked;
             localStorage.setItem('autoRefresh', enabled);
         }
-
-        // Photo upload handler
-        document.getElementById('photo-upload').addEventListener('change', (e) => {
-            const file = e.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    alert('Photo uploaded! (Note: Backend integration needed for storage)');
-                };
-                reader.readAsDataURL(file);
-            }
-        });
 
         // Close modal on outside click
         window.onclick = (event) => {
